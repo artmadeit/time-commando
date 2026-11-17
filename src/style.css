@@ -20,6 +20,9 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .bar.time > div { background: linear-gradient(90deg, #2c7bff, var(--cyan)); box-shadow: 0 0 10px var(--cyan); }
 .bar.time.low > div { animation: blink .5s infinite alternate; }
 @keyframes blink { to { opacity: .35; } }
+#chips { font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #7cc4ff; text-shadow: 0 0 8px rgba(42,157,255,.7); }
+.controls .tip { grid-column: 1 / -1; font-size: 14px; color: rgba(255,255,255,.7); margin-top: 6px; }
+.controls .tip b { color: var(--cyan); }
 #score { font-family: 'Cinzel', serif; font-size: 26px; color: var(--gold); text-shadow: 0 0 12px rgba(242,195,91,.5); }
 #weapon { font-size: 18px; font-weight: 700; letter-spacing: 2px; color: var(--cyan); }
 #weaponHint { font-size: 11px; opacity: .55; letter-spacing: 1px; }
@@ -59,5 +62,8 @@ button:hover { filter: brightness(1.1); }
   .panel { top: 10px; padding: 8px 10px; }
   .panel.left { left: 10px; }
   .panel.right { right: 10px; }
-  #score { font-size: 20px; }
+  #chips { font-size: 14px; font-weight: 700; letter-spacing: 2px; color: #7cc4ff; text-shadow: 0 0 8px rgba(42,157,255,.7); }
+.controls .tip { grid-column: 1 / -1; font-size: 14px; color: rgba(255,255,255,.7); margin-top: 6px; }
+.controls .tip b { color: var(--cyan); }
+#score { font-size: 20px; }
 }

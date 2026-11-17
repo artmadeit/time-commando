@@ -7,21 +7,31 @@ import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { makeMaterials, type Mats } from './materials';
 import { Level, resolveCircle } from './level';
 import { Rig, basePose, copyPose, guardPose, locomotion, hitPose, deathPose, sampleKeys, type RigLook, type WeaponType, type Pose } from './rig';
-import { PLAYER_COMBOS, KICK, LEGION_ATTACKS, BRUTE_ATTACKS, BOSS_ATTACKS, type AttackDef } from './combat';
+import { PLAYER_COMBOS, KICK, LEGION_ATTACKS, SPEAR_ATTACKS, TRIDENT_ATTACKS, BRUTE_ATTACKS, BOSS_ATTACKS, type AttackDef } from './combat';
 import { Particles, Trail, Rings, energyMaterial } from './fx';
 import { Input } from './input';
 import { Audio } from './audio';
 
-type EnemyKind = 'legionary' | 'brute' | 'centurion';
-type PlayerWeapon = 'fists' | 'gladius' | 'spear';
+type EnemyKind = 'legionary' | 'spearman' | 'retiarius' | 'brute' | 'centurion';
+type PlayerWeapon = 'fists' | 'gladius' | 'spear' | 'club' | 'trident';
 
 const STATS: Record<EnemyKind, { hp: number; speed: number; scale: number; radius: number; weapon: WeaponType; shield: boolean; block: number; attacks: AttackDef[]; score: number }> = {
   legionary: { hp: 55, speed: 2.7, scale: 1.0, radius: 0.45, weapon: 'gladius', shield: true, block: 0.4, attacks: LEGION_ATTACKS, score: 100 },
+  spearman: { hp: 50, speed: 2.5, scale: 1.0, radius: 0.45, weapon: 'spear', shield: false, block: 0.15, attacks: SPEAR_ATTACKS, score: 120 },
+  retiarius: { hp: 70, speed: 3.6, scale: 1.0, radius: 0.45, weapon: 'trident', shield: false, block: 0, attacks: TRIDENT_ATTACKS, score: 180 },
   brute: { hp: 160, speed: 2.1, scale: 1.3, radius: 0.6, weapon: 'club', shield: false, block: 0, attacks: BRUTE_ATTACKS, score: 250 },
   centurion: { hp: 560, speed: 3.3, scale: 1.18, radius: 0.55, weapon: 'centurion', shield: true, block: 0.35, attacks: BOSS_ATTACKS, score: 2500 },
 };
 
-const WEAPON_NAME: Record<PlayerWeapon, string> = { fists: 'PUÑOS', gladius: 'GLADIUS', spear: 'PILUM' };
+const WEAPON_NAME: Record<PlayerWeapon, string> = { fists: 'PUÑOS', gladius: 'GLADIUS', spear: 'PILUM', club: 'MAZA', trident: 'TRIDENTE' };
+const WEAPON_LEN: Record<PlayerWeapon, number> = { fists: 0, gladius: 0.85, spear: 1.7, club: 1.0, trident: 1.65 };
+// arma que suelta cada tipo de enemigo al ser derrotado
+const DROPS: Partial<Record<EnemyKind, PlayerWeapon>> = { legionary: 'gladius', spearman: 'spear', brute: 'club', retiarius: 'trident' };
+const WEAPON_HINT: Record<PlayerWeapon, string> = {
+  fists: '', gladius: 'GLADIUS · combo de tres tajos', spear: 'PILUM · gran alcance',
+  club: 'MAZA · lenta, pero rompe guardias', trident: 'TRIDENTE · estocadas rápidas',
+};
+const RIG_OF: Record<EnemyKind, 'legionary' | 'brute' | 'retiarius' | 'centurion'> = { legionary: 'legionary', spearman: 'legionary', retiarius: 'retiarius', brute: 'brute', centurion: 'centurion' };
 
 interface Spawn { k: EnemyKind; x: number; z: number }
 interface Zone { trigger: number; wallStop: number; gate: number; trap?: number; waves: Spawn[][]; started: boolean; wave: number; done: boolean }
@@ -120,7 +130,10 @@ export class Game {
   dodgeDir = new THREE.Vector3();
 
   enemies: Enemy[] = [];
-  pickups: { kind: 'weapon' | 'crystal' | 'heal'; weapon?: PlayerWeapon; mesh: THREE.Object3D; pos: THREE.Vector3; t: number }[] = [];
+  pickups: { kind: 'weapon' | 'chip' | 'heal'; weapon?: PlayerWeapon; mesh: THREE.Object3D; pos: THREE.Vector3; t: number; vel?: THREE.Vector3 }[] = [];
+  chips = 0;
+  private depositT = 0;
+  private playerSlammed = false;
   zones: Zone[] = [];
   looks!: Record<'agent' | EnemyKind, RigLook>;
   weaponMats!: Parameters<Rig['setWeapon']>[1];
@@ -223,7 +236,7 @@ export class Game {
     this.composer.addPass(new OutputPass());
 
     this.input = new Input(canvas);
-    for (const id of ['hp', 'time', 'score', 'weapon', 'combo', 'zoneTitle', 'msg', 'boss', 'bosshp', 'damage', 'hud', 'touch']) {
+    for (const id of ['chips', 'hp', 'time', 'score', 'weapon', 'combo', 'zoneTitle', 'msg', 'boss', 'bosshp', 'damage', 'hud', 'touch']) {
       this.hud[id] = document.getElementById(id)!;
     }
     addEventListener('resize', () => this.resize());
@@ -241,6 +254,8 @@ export class Game {
     this.looks = {
       agent: { skin: S(0xc58c64), suit: S(0x1b2029, 0.55, 0.3), armor: S(0x3c4757, 0.3, 0.8), accent: S(0x061a1e, 0.4, 0, 0x46f2ff, 4), leather: S(0x262a31, 0.6) },
       legionary: { skin: S(0xb8805e, 0.75), suit: red, armor: S(0xa9adb3, 0.3, 0.95), accent: this.m.bronze, leather: S(0x5a3a22, 0.8) },
+      spearman: { skin: S(0xb07c5c, 0.75), suit: this.m.cloth(25, 45, 32), armor: S(0x8f949b, 0.4, 0.9), accent: this.m.bronze, leather: S(0x4a3020, 0.8) },
+      retiarius: { skin: S(0xc08a64, 0.65), suit: S(0x1d4f8a, 0.8), armor: S(0xb4b9c0, 0.3, 0.95), accent: this.m.bronze, leather: S(0x24160e, 0.9) },
       brute: { skin: S(0xa66d4e, 0.7), suit: S(0x4a3020, 0.8), armor: S(0x45484e, 0.4, 0.9), accent: this.m.bronze, leather: S(0x3e2716, 0.85) },
       centurion: { skin: S(0xb07a58, 0.75), suit: deepRed, armor: S(0xd8dce2, 0.18, 1), accent: this.m.gold, leather: S(0x3a2414, 0.8) },
     };
@@ -286,7 +301,7 @@ export class Game {
     this.combo = 0;
     this.iframes = 0;
 
-    for (const s of this.level.weaponSpots) this.addPickup('weapon', s.pos.clone(), s.type);
+    this.chips = 0;
 
     this.level.closeGate(0);
     this.level.closeGate(1);
@@ -296,14 +311,14 @@ export class Game {
       {
         trigger: 54, wallStop: 46, gate: 1,
         waves: [
-          [{ k: 'legionary', x: -3, z: 66 }, { k: 'legionary', x: 3, z: 68 }, { k: 'brute', x: 0, z: 74 }],
-          [{ k: 'legionary', x: -3.5, z: 84 }, { k: 'legionary', x: 3.5, z: 86 }, { k: 'legionary', x: 0, z: 80 }, { k: 'brute', x: 0, z: 92 }],
+          [{ k: 'legionary', x: -3, z: 66 }, { k: 'spearman', x: 3, z: 68 }, { k: 'brute', x: 0, z: 74 }],
+          [{ k: 'spearman', x: -3.5, z: 84 }, { k: 'retiarius', x: 0, z: 80 }, { k: 'legionary', x: 3.5, z: 86 }, { k: 'spearman', x: 0, z: 92 }],
         ],
         started: false, wave: 0, done: false,
       },
       {
         trigger: 129, wallStop: 112, gate: -1, trap: 2,
-        waves: [[{ k: 'centurion', x: 0, z: 160 }, { k: 'legionary', x: -6, z: 155 }, { k: 'legionary', x: 6, z: 155 }]],
+        waves: [[{ k: 'centurion', x: 0, z: 160 }, { k: 'retiarius', x: -6, z: 155 }, { k: 'retiarius', x: 6, z: 155 }]],
         started: false, wave: 0, done: false,
       },
     ];
@@ -336,7 +351,7 @@ export class Game {
     this.rings.spawn(this.player.pos, 0x46f2ff, 6, 0.8);
     this.audio.portal();
     this.title('ERA I · ROMA');
-    setTimeout(() => this.message('Encuentra un arma. La brecha avanza tras de ti.'), 2200);
+    setTimeout(() => this.message('Pelea a puño limpio y quítales las armas. Canjea los chips en los manantiales.', 4.5), 2200);
   }
 
   // ------------------------------------------------------------------ HUD
@@ -358,6 +373,7 @@ export class Game {
     this.hud.time.parentElement!.classList.toggle('low', this.flux < 25);
     this.hud.score.textContent = this.score.toLocaleString('es');
     this.hud.weapon.textContent = WEAPON_NAME[this.playerWeapons[this.weaponIdx]];
+    this.hud.chips.textContent = `◆ ${this.chips} CHIPS`;
     if (this.comboCount >= 2 && this.comboTimer > 0) {
       this.hud.combo.textContent = `${this.comboCount} GOLPES`;
       this.hud.combo.style.opacity = '1';
@@ -373,7 +389,9 @@ export class Game {
   }
 
   // ------------------------------------------------------------------ entidades
-  private addPickup(kind: 'weapon' | 'crystal' | 'heal', pos: THREE.Vector3, weapon?: PlayerWeapon) {
+  private chipGeo = new THREE.BoxGeometry(0.28, 0.05, 0.2);
+  private chipMat = new THREE.MeshStandardMaterial({ color: 0x0a1a2a, emissive: 0x2a9dff, emissiveIntensity: 2.6, roughness: 0.25, metalness: 0.6 });
+  private addPickup(kind: 'weapon' | 'chip' | 'heal', pos: THREE.Vector3, weapon?: PlayerWeapon, vel?: THREE.Vector3) {
     let mesh: THREE.Object3D;
     if (kind === 'weapon') {
       const r = new Rig('agent', this.looks.agent);
@@ -382,26 +400,27 @@ export class Game {
       r.rHand.remove(w);
       const g = new THREE.Group();
       w.rotation.x = -Math.PI / 2;
-      w.position.y = weapon === 'spear' ? -0.7 : -0.3;
+      w.position.y = -WEAPON_LEN[weapon!] / 2;
       g.add(w);
       const halo = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.55, 32), new THREE.MeshBasicMaterial({ color: 0x46f2ff, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false }));
       halo.rotation.x = -Math.PI / 2;
-      halo.position.y = -pos.y + 0.05 + (weapon === 'gladius' ? 1.0 : 0);
+      halo.position.y = -pos.y + 0.05;
       g.add(halo);
       mesh = g;
+    } else if (kind === 'chip') {
+      mesh = new THREE.Mesh(this.chipGeo, this.chipMat);
     } else {
-      const color = kind === 'crystal' ? 0x46f2ff : 0x7dff6a;
-      const mat = new THREE.MeshStandardMaterial({ color: 0x0a1a1a, emissive: color, emissiveIntensity: 3, roughness: 0.2, metalness: 0.3 });
-      mesh = new THREE.Mesh(kind === 'crystal' ? new THREE.OctahedronGeometry(0.22) : new THREE.IcosahedronGeometry(0.2, 0), mat);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x0a1a1a, emissive: 0x7dff6a, emissiveIntensity: 3, roughness: 0.2, metalness: 0.3 });
+      mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 0), mat);
     }
     mesh.position.copy(pos);
     this.scene.add(mesh);
-    this.pickups.push({ kind, weapon, mesh, pos, t: Math.random() * 6 });
+    this.pickups.push({ kind, weapon, mesh, pos, t: Math.random() * 6, vel });
   }
 
   private spawnEnemy(s: Spawn) {
     const st = STATS[s.k];
-    const rig = new Rig(s.k, this.looks[s.k], st.scale);
+    const rig = new Rig(RIG_OF[s.k], this.looks[s.k], st.scale);
     rig.setWeapon(st.weapon, this.weaponMats);
     if (st.shield) rig.addShield(this.shieldMat.clone(), this.m.gold);
     const e = new Enemy(s.k, rig);
@@ -570,6 +589,14 @@ export class Game {
           p.vel.addScaledVector(fwd(p.facing), a.lunge * k * dt * 6);
         }
         if (p.t >= a.hit[0] && p.t <= a.hit[1]) this.playerHitCheck(a);
+        if (a.slam && !this.playerSlammed && p.t >= a.hit[0]) {
+          this.playerSlammed = true;
+          const at = p.pos.clone().addScaledVector(fwd(p.facing), 1.5);
+          this.rings.spawn(at, 0x46f2ff, 3, 0.5);
+          this.dust.burst(at.clone().setY(0.2), 30, new THREE.Color(0x8a7458), 5, 0.9, 0.6, -4, 0.5);
+          this.audio.slam();
+          this.shake = Math.max(this.shake, 0.4);
+        }
         p.trail.active = p.t >= a.hit[0] - 0.04 && p.t <= a.hit[1] + 0.04 && weapon !== 'fists';
         const chain = PLAYER_COMBOS[weapon];
         if (this.queued && p.t >= a.chain && this.combo >= 0 && this.combo < chain.length - 1) {
@@ -687,6 +714,7 @@ export class Game {
     p.atk = a;
     p.t = 0;
     p.hitSet.clear();
+    this.playerSlammed = false;
     this.queued = false;
     this.atkId++;
     this.audio.swing(!!a.heavy);
@@ -756,8 +784,8 @@ export class Game {
       e.enraged = true;
       this.message('¡Varro llama a su guardia!', 2.5);
       const C = this.level.arenaCenter;
-      this.spawnEnemy({ k: 'legionary', x: C.x - 12, z: C.z + 8 });
-      this.spawnEnemy({ k: 'legionary', x: C.x + 12, z: C.z + 8 });
+      this.spawnEnemy({ k: 'brute', x: C.x - 12, z: C.z + 8 });
+      this.spawnEnemy({ k: 'spearman', x: C.x + 12, z: C.z + 8 });
     }
   }
 
@@ -769,8 +797,16 @@ export class Game {
     e.trail.active = false;
     this.score += STATS[e.kind].score;
     this.audio.death();
-    this.addPickup('crystal', e.pos.clone().setY(0.8));
-    if (e.kind !== 'legionary' || Math.random() < 0.3) this.addPickup('heal', e.pos.clone().add(new THREE.Vector3(0.8, 0.8, 0)));
+    // chips de memoria temporal
+    const nChips = e.kind === 'centurion' ? 6 : e.kind === 'brute' ? 3 : e.kind === 'retiarius' ? 2 : 1 + (Math.random() < 0.4 ? 1 : 0);
+    for (let i = 0; i < nChips; i++) this.addPickup('chip', e.pos.clone().setY(0.9), undefined, new THREE.Vector3((Math.random() - 0.5) * 4, 4 + Math.random() * 2, (Math.random() - 0.5) * 4));
+    // su arma cae al suelo
+    const drop = DROPS[e.kind];
+    if (drop && (!this.playerWeapons.includes(drop) || Math.random() < 0.15)) {
+      if (e.rig.weapon) e.rig.weapon.visible = false;
+      this.addPickup('weapon', e.pos.clone().addScaledVector(fwd(e.facing), -0.6).setY(1.0), drop);
+    }
+    if (e.kind === 'brute' || e.kind === 'retiarius' || Math.random() < 0.25) this.addPickup('heal', e.pos.clone().add(new THREE.Vector3(0.8, 0.8, 0)));
     if (e.kind === 'centurion') {
       this.slowT = 1.6;
       this.shake = 0.6;
@@ -1111,7 +1147,7 @@ export class Game {
     let stop = 112;
     for (const z of this.zones) if (!z.done) { stop = z.wallStop; break; }
     if (this.zones.every((z) => z.done)) stop = 112;
-    this.wallZ = Math.min(stop, Math.max(this.wallZ + dt * 0.9, p.pos.z - 32));
+    this.wallZ = Math.min(stop, Math.max(this.wallZ + dt * 0.6, p.pos.z - 32));
     this.riftWall.position.z = this.wallZ;
     if (p.pos.z < this.wallZ + 1.2) {
       p.pos.z = Math.max(p.pos.z, this.wallZ + 0.6);
@@ -1131,30 +1167,92 @@ export class Game {
     const p = this.player;
     this.pickups = this.pickups.filter((it) => {
       it.t += dt;
-      it.mesh.rotation.y += dt * 1.8;
-      it.mesh.position.y = it.pos.y + Math.sin(it.t * 2.5) * 0.12;
-      if (Math.random() < dt * 6) this.sparks.emit(it.pos.x + (Math.random() - 0.5) * 0.4, it.pos.y - 0.3, it.pos.z + (Math.random() - 0.5) * 0.4, 0, 0.8, 0, 0.8, 0.25, new THREE.Color(it.kind === 'heal' ? 0x7dff6a : 0x46f2ff), 0, 1);
+      if (it.vel) {
+        // los chips saltan del enemigo y rebotan
+        it.vel.y -= 14 * dt;
+        it.pos.addScaledVector(it.vel, dt);
+        resolveCircle(it.pos, 0.2, this.level.cols);
+        if (it.pos.y < 0.3) {
+          it.pos.y = 0.3;
+          it.vel.y *= -0.35;
+          it.vel.x *= 0.5; it.vel.z *= 0.5;
+          if (Math.abs(it.vel.y) < 0.8) it.vel = undefined;
+        }
+        it.mesh.position.copy(it.pos);
+        it.mesh.rotation.x += dt * 8;
+      } else {
+        it.mesh.rotation.y += dt * 1.8;
+        it.mesh.rotation.x *= 0.9;
+        it.mesh.position.y = it.pos.y + Math.sin(it.t * 2.5) * (it.kind === 'chip' ? 0.06 : 0.12);
+      }
+      if (Math.random() < dt * (it.kind === 'chip' ? 2 : 6)) this.sparks.emit(it.pos.x + (Math.random() - 0.5) * 0.4, it.pos.y - 0.2, it.pos.z + (Math.random() - 0.5) * 0.4, 0, 0.8, 0, 0.8, 0.25, new THREE.Color(it.kind === 'heal' ? 0x7dff6a : it.kind === 'chip' ? 0x2a9dff : 0x46f2ff), 0, 1);
       if (p.state === 'dead' || this.state !== 'play') return true;
       const d = Math.hypot(p.pos.x - it.pos.x, p.pos.z - it.pos.z);
-      if (d > 1.3) return true;
+      // imán suave para chips cercanos
+      if (it.kind === 'chip' && !it.vel && d < 2.6 && d > 0.01) {
+        const k = Math.min(1, dt * 8 / d);
+        it.pos.x += (p.pos.x - it.pos.x) * k;
+        it.pos.z += (p.pos.z - it.pos.z) * k;
+        it.mesh.position.x = it.pos.x;
+        it.mesh.position.z = it.pos.z;
+      }
+      if (d > (it.kind === 'chip' ? 0.8 : 1.3) || (it.vel && it.kind === 'chip')) return true;
       this.scene.remove(it.mesh);
       if (it.kind === 'weapon' && it.weapon) {
-        this.playerWeapons.push(it.weapon);
-        this.weaponIdx = this.playerWeapons.length - 1;
-        p.rig.setWeapon(it.weapon, this.weaponMats);
-        this.audio.pickup();
-        this.message(it.weapon === 'gladius' ? 'GLADIUS obtenido · combo de 3 tajos' : 'PILUM obtenido · gran alcance (Q para cambiar)', 3);
-      } else if (it.kind === 'crystal') {
-        this.flux = Math.min(100, this.flux + 12);
-        this.score += 50;
-        this.audio.pickup();
+        if (this.playerWeapons.includes(it.weapon)) {
+          this.score += 100;
+          this.audio.pickup();
+          this.message(`${WEAPON_NAME[it.weapon]} ya en tu inventario · +100`, 1.5);
+        } else {
+          this.playerWeapons.push(it.weapon);
+          this.weaponIdx = this.playerWeapons.length - 1;
+          p.rig.setWeapon(it.weapon, this.weaponMats);
+          this.audio.pickup();
+          this.message(`${WEAPON_HINT[it.weapon]}${this.playerWeapons.length > 2 ? ' · Q para cambiar' : ''}`, 3);
+        }
+      } else if (it.kind === 'chip') {
+        this.chips++;
+        this.score += 25;
+        this.audio.chip();
+        if (this.chips === 1) this.message('Chip temporal · llévalo a un manantial para ganar tiempo', 3);
       } else {
         p.hp = Math.min(p.maxHp, p.hp + 35);
         this.audio.heal();
       }
-      this.sparks.burst(it.pos, 30, new THREE.Color(it.kind === 'heal' ? 0x7dff6a : 0x46f2ff), 4, 0.6, 0.3, 0);
+      this.sparks.burst(it.pos, it.kind === 'chip' ? 8 : 30, new THREE.Color(it.kind === 'heal' ? 0x7dff6a : 0x46f2ff), 4, 0.6, 0.3, 0);
       return false;
     });
+    this.updateSprings(dt);
+  }
+
+  /** Manantiales temporales: convierten los chips en flujo de tiempo */
+  private updateSprings(dt: number) {
+    const p = this.player;
+    for (const sp of this.level.springs) {
+      const d = Math.hypot(p.pos.x - sp.pos.x, p.pos.z - sp.pos.z);
+      const inside = d < 1.4 && p.state !== 'dead' && this.state === 'play';
+      sp.glow += ((inside ? 1 : 0) - sp.glow) * Math.min(1, dt * 4);
+      if (Math.random() < dt * 10) {
+        const a = Math.random() * Math.PI * 2, r = Math.random() * 1.1;
+        this.sparks.emit(sp.pos.x + Math.cos(a) * r, 0.2, sp.pos.z + Math.sin(a) * r, 0, 1.2 + Math.random() * 1.5, 0, 1.6, 0.3, new THREE.Color(0x46f2ff), 0, 0.3);
+      }
+      if (!inside) continue;
+      if (this.chips > 0) {
+        this.depositT -= dt;
+        if (this.depositT <= 0) {
+          this.depositT = 0.12;
+          this.chips--;
+          this.flux = Math.min(100, this.flux + 7);
+          this.score += 40;
+          this.audio.chip(true);
+          this.sparks.burst(p.chest(), 14, new THREE.Color(0x46f2ff), 4, 0.8, 0.35, 2, 1);
+          if (this.chips === 0) this.message('Flujo temporal restaurado', 2);
+        }
+      } else if (!this.shownTitles.has('springhint') && this.flux < 99) {
+        this.shownTitles.add('springhint');
+        this.message('Manantial temporal · trae chips para recargar el flujo', 3);
+      }
+    }
   }
 
   private updateAmbient(dt: number) {

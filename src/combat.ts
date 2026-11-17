@@ -18,7 +18,7 @@ export interface AttackDef {
 const P = Math.PI;
 
 // ----------------------------------------------------------------- jugadora
-export const PLAYER_COMBOS: Record<Exclude<WeaponType, 'club' | 'centurion'>, AttackDef[]> = {
+export const PLAYER_COMBOS: Record<Exclude<WeaponType, 'centurion'>, AttackDef[]> = {
   fists: [
     {
       dur: 0.34, hit: [0.07, 0.16], dmg: 8, range: 1.55, arc: 0.5, knock: 1.5, lunge: 2.5, chain: 0.14,
@@ -61,6 +61,34 @@ export const PLAYER_COMBOS: Record<Exclude<WeaponType, 'club' | 'centurion'>, At
       keys: [{ t: 0, p: {} }, { t: 0.35, p: { rShP: 0.1, rEl: 1.9, rWr: 1.5, spineY: -0.7, bodyY: -0.15, lKnee: 0.8, rKnee: 0.7, lShP: 1.2 } }, { t: 0.5, p: { rShP: 1.55, rEl: 0.0, rWr: P / 2, spineY: 0.4, spineX: 0.35, lLegP: 0.8, rLegP: -0.6, bodyY: -0.18, lShP: 1.5, lEl: 0.2 } }, { t: 0.78, p: { rShP: 1.5, rWr: P / 2, spineX: 0.35, lLegP: 0.8, rLegP: -0.6, bodyY: -0.18 } }, { t: 1, p: {} }],
     },
   ],
+  club: [
+    {
+      dur: 0.62, hit: [0.24, 0.36], dmg: 26, range: 2.3, arc: 0.1, knock: 6, lunge: 2, chain: 0.4, heavy: true,
+      keys: [{ t: 0, p: {} }, { t: 0.35, p: { rShP: 0.6, rShA: 1.3, rShY: -0.9, rEl: 0.4, rWr: 1.0, spineY: -0.9 } }, { t: 0.58, p: { rShP: 0.5, rShA: 1.3, rShY: 2.1, rEl: 0.1, rWr: 1.1, spineY: 0.8 } }, { t: 0.78, p: { rShY: 2.1, spineY: 0.8 } }, { t: 1, p: {} }],
+    },
+    {
+      dur: 0.62, hit: [0.24, 0.36], dmg: 26, range: 2.3, arc: 0.1, knock: 6, lunge: 2, chain: 0.4, heavy: true,
+      keys: [{ t: 0, p: {} }, { t: 0.35, p: { rShP: 0.5, rShA: 1.3, rShY: 2.1, rEl: 0.6, rWr: 1.1, spineY: 0.8 } }, { t: 0.58, p: { rShP: 0.6, rShA: 1.3, rShY: -0.8, rEl: 0.2, rWr: 1.0, spineY: -0.8 } }, { t: 0.78, p: { rShY: -0.8, spineY: -0.8 } }, { t: 1, p: {} }],
+    },
+    {
+      dur: 0.95, hit: [0.48, 0.6], dmg: 42, range: 2.6, arc: 0.3, knock: 10, lunge: 3, chain: 0.8, heavy: true, slam: true, breaksGuard: true,
+      keys: [{ t: 0, p: {} }, { t: 0.45, p: { rShP: 3.0, rEl: 0.5, rWr: -0.2, lShP: 2.8, lEl: 0.6, spineX: -0.35, bodyY: 0.03 } }, { t: 0.6, p: { rShP: 0.9, rEl: 0.05, rWr: 0.6, lShP: 0.9, lEl: 0.1, spineX: 0.6, bodyY: -0.2, lKnee: 0.7, rKnee: 0.7, lLegP: 0.4 } }, { t: 0.82, p: { rShP: 0.9, rWr: 0.6, spineX: 0.6, bodyY: -0.2 } }, { t: 1, p: {} }],
+    },
+  ],
+  trident: [
+    {
+      dur: 0.36, hit: [0.1, 0.19], dmg: 15, range: 2.8, arc: 0.75, knock: 2, lunge: 3, chain: 0.18,
+      keys: [{ t: 0, p: {} }, { t: 0.25, p: { rShP: 0.3, rEl: 1.6, rWr: 1.45, lShP: 1.0, spineY: -0.2 } }, { t: 0.48, p: { rShP: 1.5, rEl: 0.05, rWr: P / 2, lShP: 1.4, lEl: 0.3, spineY: 0.3, spineX: 0.2 } }, { t: 1, p: {} }],
+    },
+    {
+      dur: 0.36, hit: [0.1, 0.19], dmg: 15, range: 2.8, arc: 0.75, knock: 2, lunge: 3, chain: 0.18,
+      keys: [{ t: 0, p: {} }, { t: 0.25, p: { rShP: 0.4, rEl: 1.5, rWr: 1.45, lShP: 1.0, spineY: -0.3, bodyY: -0.06 } }, { t: 0.48, p: { rShP: 1.4, rEl: 0.05, rWr: P / 2, lShP: 1.3, spineY: 0.35, spineX: 0.25, bodyY: -0.08 } }, { t: 1, p: {} }],
+    },
+    {
+      dur: 0.6, hit: [0.2, 0.34], dmg: 24, range: 3.0, arc: -0.2, knock: 7, lunge: 2, chain: 0.45, heavy: true,
+      keys: [{ t: 0, p: {} }, { t: 0.3, p: { rShP: 0.5, rShA: 1.3, rShY: -0.9, rEl: 0.3, rWr: 1.4, spineY: -0.9 } }, { t: 0.6, p: { rShP: 0.4, rShA: 1.35, rShY: 2.3, rEl: 0.1, rWr: 1.5, spineY: 0.9 } }, { t: 0.8, p: { rShY: 2.3, spineY: 0.9 } }, { t: 1, p: {} }],
+    },
+  ],
 };
 
 export const KICK: AttackDef = {
@@ -77,6 +105,30 @@ export const LEGION_ATTACKS: AttackDef[] = [
   {
     dur: 1.0, hit: [0.52, 0.64], dmg: 10, range: 2.1, arc: 0.6, knock: 4, lunge: 5, chain: 9,
     keys: [{ t: 0, p: {} }, { t: 0.45, p: { rShP: 0.3, rEl: 1.9, rWr: 1.4, spineY: -0.5, bodyY: -0.08, shield: 0.6 } }, { t: 0.62, p: { rShP: 1.5, rEl: 0.0, rWr: P / 2, spineY: 0.3, spineX: 0.3, lLegP: 0.6, rLegP: -0.4, bodyY: -0.12 } }, { t: 0.85, p: { rShP: 1.4, rWr: P / 2, spineX: 0.25 } }, { t: 1, p: {} }],
+  },
+];
+
+// lancero: estocadas de largo alcance
+export const SPEAR_ATTACKS: AttackDef[] = [
+  {
+    dur: 1.1, hit: [0.58, 0.72], dmg: 11, range: 2.9, arc: 0.8, knock: 4, lunge: 2.5, chain: 9,
+    keys: [{ t: 0, p: {} }, { t: 0.5, p: { rShP: 0.2, rEl: 1.8, rWr: 1.45, lShP: 1.0, spineY: -0.5, bodyY: -0.08 } }, { t: 0.66, p: { rShP: 1.5, rEl: 0.05, rWr: P / 2, lShP: 1.4, lEl: 0.3, spineY: 0.3, spineX: 0.25, lLegP: 0.5 } }, { t: 0.85, p: { rShP: 1.45, rWr: P / 2 } }, { t: 1, p: {} }],
+  },
+  {
+    dur: 1.2, hit: [0.62, 0.78], dmg: 10, range: 2.8, arc: 0.0, knock: 5, lunge: 1, chain: 9,
+    keys: [{ t: 0, p: {} }, { t: 0.5, p: { rShP: 0.5, rShA: 1.3, rShY: -0.9, rEl: 0.3, rWr: 1.4, spineY: -0.9 } }, { t: 0.68, p: { rShP: 0.4, rShA: 1.35, rShY: 2.2, rEl: 0.1, rWr: 1.5, spineY: 0.8 } }, { t: 0.85, p: { rShY: 2.2, spineY: 0.8 } }, { t: 1, p: {} }],
+  },
+];
+
+// reciario: rápido, doble estocada con tridente
+export const TRIDENT_ATTACKS: AttackDef[] = [
+  {
+    dur: 0.8, hit: [0.4, 0.52], dmg: 9, range: 2.7, arc: 0.7, knock: 3, lunge: 4, chain: 9,
+    keys: [{ t: 0, p: {} }, { t: 0.45, p: { rShP: 0.3, rEl: 1.7, rWr: 1.45, lShP: 1.0, spineY: -0.4, bodyY: -0.1 } }, { t: 0.62, p: { rShP: 1.5, rEl: 0.05, rWr: P / 2, lShP: 1.4, spineY: 0.3, spineX: 0.25, lLegP: 0.5 } }, { t: 1, p: {} }],
+  },
+  {
+    dur: 0.65, hit: [0.25, 0.37], dmg: 9, range: 2.7, arc: 0.7, knock: 4, lunge: 5, chain: 9,
+    keys: [{ t: 0, p: { rShP: 1.5, rEl: 0.05, rWr: P / 2 } }, { t: 0.35, p: { rShP: 0.4, rEl: 1.6, rWr: 1.45, spineY: -0.3 } }, { t: 0.6, p: { rShP: 1.5, rEl: 0.0, rWr: P / 2, spineY: 0.35, spineX: 0.3, lLegP: 0.6, rLegP: -0.4 } }, { t: 1, p: {} }],
   },
 ];
 

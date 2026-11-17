@@ -71,6 +71,7 @@ export class Level {
   gates: Gate[] = [];
   flames: THREE.Vector3[] = [];
   weaponSpots: { type: 'gladius' | 'spear'; pos: THREE.Vector3 }[] = [];
+  springs: { pos: THREE.Vector3; mats: THREE.ShaderMaterial[]; glow: number }[] = [];
   crowd: THREE.InstancedMesh | null = null;
   private crowdBase: { x: number; y: number; z: number; ph: number; s: number }[] = [];
   private flameMeshes: THREE.Mesh[] = [];
@@ -237,6 +238,34 @@ export class Level {
       this.group.add(pl);
     }
   }
+  /** Manantial temporal: aquí se canjean los chips por flujo de tiempo */
+  spring(x: number, z: number) {
+    const m = this.m;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.16, 8, 32), m.marble());
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.set(x, 0.14, z);
+    rim.castShadow = rim.receiveShadow = true;
+    this.group.add(rim);
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      this.box(0.25, 0.9, 0.25, m.marble(), x + Math.cos(a) * 1.25, 0.45, z + Math.sin(a) * 1.25, a);
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), new THREE.MeshStandardMaterial({ color: 0x061a1e, emissive: 0x46f2ff, emissiveIntensity: 3 }));
+      gem.position.set(x + Math.cos(a) * 1.25, 1.02, z + Math.sin(a) * 1.25);
+      this.group.add(gem);
+    }
+    const discMat = energyMaterial(0x46f2ff, 0x2c7bff, 2);
+    const disc = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4), discMat);
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.set(x, 0.12, z);
+    this.group.add(disc);
+    const colMat = energyMaterial(0x2c7bff, 0x46f2ff, 0);
+    colMat.uniforms.uOpacity.value = 0.45;
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.1, 5, 24, 1, true), colMat);
+    col.position.set(x, 2.5, z);
+    this.group.add(col);
+    this.springs.push({ pos: new THREE.Vector3(x, 0, z), mats: [discMat, colMat], glow: 0 });
+  }
+
   amphora(x: number, z: number, s = 1, tilt = 0) {
     const pts: THREE.Vector2[] = [];
     const prof = [[0, 0], [0.06, 0.02], [0.1, 0.15], [0.17, 0.4], [0.19, 0.55], [0.16, 0.7], [0.07, 0.82], [0.055, 0.98], [0.075, 1.0]];
@@ -301,9 +330,9 @@ export class Level {
     this.box(2.5, 0.6, 0.7, m.sandstone(), 8.5, 0.3, 36, -0.2, true);
     this.box(3, 1.4, 0.7, m.sandstone(), -2, 0.7, 39, 0, true);
 
-    // pedestal con el gladius
+    // pedestal vacío y primer manantial temporal
     this.box(1.2, 1, 1.2, m.marble(), 3, 0.5, 14, 0.2, true);
-    this.weaponSpots.push({ type: 'gladius', pos: new THREE.Vector3(3, 1.25, 14) });
+    this.spring(4.5, 38);
 
     // estatua derribada del fundador
     const statue = new Rig('statue', statueLook, 1.6);
@@ -447,13 +476,9 @@ export class Level {
     this.stall(-5.2, 66, -1);
     this.stall(5.2, 80, 1);
     this.stall(-5.2, 96, -1);
-    // fuente pública
-    this.box(1.6, 0.7, 1, m.sandstone(), -6, 0.35, 76, 0, true);
-    this.box(0.3, 1.4, 0.3, m.sandstone(), -6.6, 1, 76, 0, false);
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.8), m.water);
-    water.rotation.x = -Math.PI / 2;
-    water.position.set(-6, 0.66, 76);
-    this.group.add(water);
+    // manantiales temporales de la calle
+    this.spring(-4.4, 76);
+    this.spring(0, 106);
     // cajas y ánforas
     for (const [x, z] of [[-6, 60], [6, 70], [-6.2, 86], [6.1, 92], [6, 104], [-6, 104]]) {
       this.box(0.8, 0.8, 0.8, m.wood(), x, 0.4, z, this.r(), true);
@@ -464,9 +489,6 @@ export class Level {
     this.box(2.6, 0.7, 1.4, m.wood(), 3.5, 0.6, 88, 0.6, true).rotation.z = 0.25;
     const wheel = this.cyl(0.6, 0.6, 0.12, m.wood(), 4.6, 0.6, 87, 14);
     wheel.rotation.set(Math.PI / 2, 0, 0.6);
-    // lanza en una armería
-    this.box(1.5, 0.15, 0.4, m.wood(), -6.3, 1.8, 92, 0, false, false);
-    this.weaponSpots.push({ type: 'spear', pos: new THREE.Vector3(-5.6, 1.1, 91.5) });
     // cuerdas con tela cruzando la calle
     for (const z of [62, 84, 100]) {
       const hue = [0, 45, 210][Math.floor(this.r() * 3)];
@@ -666,6 +688,10 @@ export class Level {
 
   // ---------------- animación
   update(t: number) {
+    for (const sp of this.springs) {
+      for (const mt of sp.mats) mt.uniforms.uTime.value = t * (1 + sp.glow * 3);
+      sp.mats[1].uniforms.uOpacity.value = 0.45 + sp.glow * 0.8;
+    }
     for (const g of this.gates) {
       g.mat.uniforms.uTime.value = t;
       if (g.state === 'open' && g.fade > 0) {

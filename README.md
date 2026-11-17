@@ -35,14 +35,26 @@ En móvil aparecen un joystick y botones táctiles.
 
 ## El nivel
 
-1. **Afueras de Roma.** Ruinas al atardecer. Consigue el *gladius* y derrota a la avanzadilla.
-2. **Vía del Mercado.** Calle con tiendas, toldos y puestos. Dos oleadas de legionarios y gladiadores
-   brutos. Busca el *pilum* (lanza de gran alcance) en una armería.
-3. **El Anfiteatro.** El túnel se cierra a tu espalda y empieza el combate contra **Varro, Centurión de
-   la Brecha**, ante miles de espectadores. A mitad de vida llama a su guardia.
+Empiezas a puño limpio. **Cada enemigo derrotado suelta su arma** y puedes quedártela; cambias entre
+las que tengas con Q.
 
-El **flujo temporal** se agota con el tiempo; los cristales que sueltan los enemigos lo recargan. La
-**brecha** avanza por detrás y te daña si te alcanza.
+| Adversario | Arma que suelta | Cómo pelea |
+|---|---|---|
+| Legionario | Gladius | Escudo rectangular, bloquea a menudo (usa la patada) |
+| Lancero | Pilum | Estocadas de largo alcance |
+| Reciario | Tridente | Gladiador rápido, sin armadura, dobles estocadas |
+| Bruto (gladiador pesado) | Maza | Lento, golpes que hacen temblar el suelo, aguanta golpes ligeros |
+| Varro, Centurión de la Brecha | — | Jefe final: combos, carga y golpe de escudo |
+
+1. **Afueras de Roma.** Ruinas al atardecer y la primera patrulla de legionarios.
+2. **Vía del Mercado.** Calle con tiendas, toldos y puestos. Dos oleadas mixtas.
+3. **El Anfiteatro.** El túnel se cierra a tu espalda y empieza el combate contra Varro ante miles de
+   espectadores. A mitad de vida llama a refuerzos.
+
+**Chips y manantiales.** El **flujo temporal** se agota con el tiempo. Los enemigos sueltan **chips
+temporales**: recogerlos no da tiempo por sí solo, tienes que llevarlos a un **manantial temporal**
+(hay tres en el nivel) y entrar en él para convertirlos en flujo. La **brecha** avanza por detrás:
+si te alcanza te daña, y los chips o manantiales que deje atrás se pierden.
 
 ## Estructura
 

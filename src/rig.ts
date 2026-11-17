@@ -62,8 +62,8 @@ export function sampleKeys(keys: Key[], t: number, out: Pose) {
   assign(out, keys[keys.length - 1].p);
 }
 
-export type RigKind = 'agent' | 'legionary' | 'brute' | 'centurion' | 'statue';
-export type WeaponType = 'fists' | 'gladius' | 'spear' | 'club' | 'centurion';
+export type RigKind = 'agent' | 'legionary' | 'brute' | 'retiarius' | 'centurion' | 'statue';
+export type WeaponType = 'fists' | 'gladius' | 'spear' | 'club' | 'trident' | 'centurion';
 
 export interface RigLook {
   skin: THREE.MeshStandardMaterial;
@@ -130,7 +130,8 @@ export class Rig {
       return m;
     };
 
-    const bare = kind === 'brute';
+    const glad = kind === 'brute' || kind === 'retiarius';
+    const bare = glad;
     const limbArm = kind === 'agent' || kind === 'statue' ? L.suit : L.skin;
     const limbLeg = kind === 'agent' || kind === 'statue' ? L.suit : L.skin;
 
@@ -143,7 +144,7 @@ export class Rig {
       for (let i = 0; i < 7; i++) {
         add(this.hips, new THREE.BoxGeometry(0.045, 0.24, 0.015), L.leather, -0.15 + i * 0.05, -0.1, 0.17);
       }
-    } else if (kind === 'brute') {
+    } else if (glad) {
       const skirt = add(this.hips, new THREE.CylinderGeometry(0.2, 0.26, 0.3, 12, 1, true), L.leather, 0, -0.12, 0);
       skirt.scale.z = 0.8;
       add(this.hips, new THREE.TorusGeometry(0.19, 0.035, 6, 18), L.armor, 0, 0.05, 0).rotation.x = Math.PI / 2;
@@ -184,7 +185,7 @@ export class Rig {
           ph.rotation.x = Math.PI / 2;
         }
       }
-    } else if (kind === 'brute') {
+    } else if (glad) {
       const strap = add(this.spine, new THREE.BoxGeometry(0.06, 0.55, 0.02), L.leather, 0, 0.27, 0.13);
       strap.rotation.z = 0.6;
       const strap2 = add(this.spine, new THREE.BoxGeometry(0.06, 0.55, 0.02), L.leather, 0, 0.27, -0.13);
@@ -223,6 +224,11 @@ export class Rig {
       } else {
         add(this.head, new THREE.BoxGeometry(0.04, 0.12, 0.3), L.armor, 0, 0.33, 0);
       }
+    } else if (kind === 'retiarius') {
+      const hair = add(this.head, new THREE.SphereGeometry(0.122, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), L.leather, 0, 0.175, -0.005);
+      hair.scale.set(0.95, 1.0, 1.05);
+      const band = add(this.head, new THREE.TorusGeometry(0.11, 0.012, 6, 20), L.suit, 0, 0.19, 0.01);
+      band.rotation.x = Math.PI / 2;
     } else if (kind === 'brute') {
       const helm = add(this.head, new THREE.SphereGeometry(0.145, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), L.armor, 0, 0.17, 0);
       helm.scale.set(1, 1.05, 1.08);
@@ -248,6 +254,11 @@ export class Rig {
           const p = add(sh, new THREE.SphereGeometry(0.09 - i * 0.008, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), L.armor, 0.01 * side, -0.02 - i * 0.045, 0);
           p.scale.set(1.05, 0.7, 1.05);
         }
+      } else if (kind === 'retiarius' && side === 1) {
+        // manica y galerus (hombrera alta) en el brazo izquierdo
+        for (let i = 0; i < 5; i++) add(sh, new THREE.CylinderGeometry(0.066, 0.064, 0.05, 10), L.armor, 0, -0.04 - i * 0.05, 0);
+        const gal = add(sh, new THREE.BoxGeometry(0.03, 0.22, 0.2), L.armor, 0.09, 0.08, 0);
+        gal.rotation.z = -0.25;
       } else if (kind === 'brute' && side === -1) {
         // manica en el brazo del arma
         for (let i = 0; i < 4; i++) add(sh, new THREE.CylinderGeometry(0.07, 0.068, 0.05, 10), L.armor, 0, -0.06 - i * 0.055, 0);
@@ -256,7 +267,7 @@ export class Rig {
       el.position.y = -0.3;
       add(el, cap(0.05, 0.18), limbArm, 0, -0.13, 0);
       if (kind === 'agent') add(el, new THREE.CylinderGeometry(0.062, 0.058, 0.14, 12), L.armor, 0, -0.16, 0);
-      if (kind === 'legionary' || kind === 'centurion' || kind === 'brute') add(el, new THREE.CylinderGeometry(0.058, 0.055, 0.1, 10), L.leather, 0, -0.2, 0);
+      if (kind === 'legionary' || kind === 'centurion' || glad) add(el, new THREE.CylinderGeometry(0.058, 0.055, 0.1, 10), L.leather, 0, -0.2, 0);
       el.add(hand);
       hand.position.y = -0.28;
       add(hand, new THREE.SphereGeometry(0.055, 10, 8), kind === 'agent' ? L.armor : L.skin, 0, 0, 0.01).scale.set(0.9, 1, 1.1);
@@ -278,9 +289,9 @@ export class Rig {
       add(knee, cap(0.062, 0.3), limbLeg, 0, -0.2, 0);
       if (kind === 'agent') {
         add(knee, new THREE.BoxGeometry(0.11, 0.28, 0.1), L.armor, 0, -0.24, 0.02);
-      } else if (kind === 'legionary' || kind === 'centurion' || kind === 'brute') {
+      } else if (kind === 'legionary' || kind === 'centurion' || glad) {
         // greaves / sandalias
-        add(knee, new THREE.CylinderGeometry(0.07, 0.06, 0.22, 10), kind === 'brute' ? L.leather : L.armor, 0, -0.26, 0.01);
+        add(knee, new THREE.CylinderGeometry(0.07, 0.06, 0.22, 10), glad ? L.leather : L.armor, 0, -0.26, 0.01);
       }
       const foot = add(knee, new THREE.BoxGeometry(0.1, 0.07, 0.24), kind === 'agent' ? L.armor : L.leather, 0, -0.44, 0.05);
       foot.castShadow = true;
@@ -352,6 +363,19 @@ export class Rig {
       }
       this.bladeBase.position.set(0, 0, 0.9);
       this.bladeTip.position.set(0, 0, 1.66);
+    } else if (type === 'trident') {
+      mk(new THREE.CylinderGeometry(0.018, 0.02, 1.9, 8), mats.wood, 0, 0, 0.3).rotation.x = Math.PI / 2;
+      mk(new THREE.BoxGeometry(0.26, 0.025, 0.03), metal, 0, 0, 1.26);
+      for (const x of [-0.12, 0, 0.12]) {
+        const prong = mk(new THREE.ConeGeometry(0.018, 0.34, 6), metal, x, 0, 1.43);
+        prong.rotation.x = Math.PI / 2;
+      }
+      if (this.kind === 'agent') {
+        const ring = mk(new THREE.TorusGeometry(0.03, 0.008, 6, 14), glow, 0, 0, 1.15);
+        ring.castShadow = false;
+      }
+      this.bladeBase.position.set(0, 0, 0.9);
+      this.bladeTip.position.set(0, 0, 1.6);
     } else if (type === 'club') {
       mk(new THREE.CylinderGeometry(0.03, 0.04, 0.9, 8), mats.wood, 0, 0, 0.3).rotation.x = Math.PI / 2;
       const head = mk(new THREE.CylinderGeometry(0.12, 0.1, 0.32, 10), metal, 0, 0, 0.8);
@@ -458,6 +482,7 @@ export function guardPose(p: Pose, weapon: WeaponType, t: number, blocking = fal
       p.spineY = 0.15;
       break;
     case 'spear':
+    case 'trident':
       p.lShP = 0.9; p.lEl = 0.9; p.lShA = 0.1;
       p.rShP = 0.3; p.rEl = 1.25; p.rShA = 0.25; p.rWr = 1.25;
       p.spineY = 0.35;

@@ -85,6 +85,7 @@ export class Audio {
   step() { this.noise(0.06, 'lowpass', 700, 200, 0.06); }
   roll() { this.noise(0.32, 'lowpass', 900, 150, 0.22); }
   pickup() { [660, 880, 1320, 1760].forEach((f, i) => this.tone('sine', f, f, 0.25, 0.14, i * 0.06)); }
+  chip(deposit = false) { this.tone('sine', deposit ? 1100 : 1500, deposit ? 1600 : 1900, 0.09, 0.1); }
   heal() { [523, 659, 784].forEach((f, i) => this.tone('triangle', f, f * 1.01, 0.35, 0.12, i * 0.08)); }
   spawn() { this.tone('sine', 900, 120, 0.6, 0.18); this.noise(0.5, 'bandpass', 3000, 300, 0.2, 4); }
   gate() { this.tone('sine', 120, 700, 0.9, 0.22); this.noise(0.9, 'bandpass', 400, 4000, 0.15, 3); }
