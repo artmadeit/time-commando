@@ -1,0 +1,21 @@
+{
+  "name": "chrono-breach",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrono Breach — juego de acción 3D de viajes en el tiempo para el navegador (Three.js)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.170.0",
+    "typescript": "5.6.3",
+    "vite": "5.4.11"
+  }
+}

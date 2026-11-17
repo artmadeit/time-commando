@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Chrono Breach — Era I: Roma</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud" class="hidden">
+    <div class="panel left">
+      <div class="label">INTEGRIDAD</div>
+      <div class="bar hp"><div id="hp"></div></div>
+      <div class="label">FLUJO TEMPORAL</div>
+      <div class="bar time"><div id="time"></div></div>
+    </div>
+    <div class="panel right">
+      <div id="score">0</div>
+      <div id="weapon">PUÑOS</div>
+      <div id="weaponHint">Q · cambiar arma</div>
+    </div>
+    <div id="combo"></div>
+    <div id="zoneTitle"></div>
+    <div id="msg"></div>
+    <div id="boss" class="hidden">
+      <div class="name">VARRO, CENTURIÓN DE LA BRECHA</div>
+      <div class="bar"><div id="bosshp"></div></div>
+    </div>
+    <div id="damage"></div>
+  </div>
+
+  <div id="touch" class="hidden">
+    <div id="stick"><div id="knob"></div></div>
+    <div id="tbtns">
+      <button data-a="attack">⚔</button>
+      <button data-a="kick">🦶</button>
+      <button data-a="dodge">⟲</button>
+      <button data-a="block">🛡</button>
+      <button data-a="switch" class="small">Q</button>
+    </div>
+  </div>
+
+  <div id="menu" class="screen">
+    <div class="card">
+      <div class="era">ERA I · ROMA · 80 d.C.</div>
+      <h1>CHRONO<span>BREACH</span></h1>
+      <p class="story">
+        Año 2097. Un experimento militar abre una <b>brecha temporal</b> que se traga la historia.
+        Eres la agente <b>Kai Navarro</b>: salta a la Roma imperial, abre paso entre las legiones
+        atrapadas en la anomalía y cierra la brecha antes de que el flujo temporal colapse.
+      </p>
+      <div class="controls">
+        <div><kbd>WASD</kbd> mover</div>
+        <div><kbd>J</kbd>/<kbd>Clic</kbd> atacar (combo)</div>
+        <div><kbd>K</kbd> patada (rompe guardia)</div>
+        <div><kbd>L</kbd>/<kbd>Clic der.</kbd> bloquear</div>
+        <div><kbd>Espacio</kbd> esquivar</div>
+        <div><kbd>Q</kbd> cambiar arma · <kbd>Esc</kbd> pausa</div>
+      </div>
+      <button id="play">ENTRAR EN LA BRECHA</button>
+      <div class="foot">Mando compatible · Controles táctiles en móvil</div>
+    </div>
+  </div>
+
+  <div id="over" class="screen hidden">
+    <div class="card">
+      <h2 id="overTitle">FLUJO COLAPSADO</h2>
+      <p id="overText"></p>
+      <button id="retry">REINTENTAR</button>
+    </div>
+  </div>
+
+  <div id="pause" class="screen hidden">
+    <div class="card"><h2>PAUSA</h2><button id="resume">CONTINUAR</button></div>
+  </div>
+
+  <div id="loading">Cargando era…</div>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

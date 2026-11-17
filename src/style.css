@@ -1,0 +1,63 @@
+:root {
+  --cyan: #46f2ff;
+  --gold: #f2c35b;
+  --red: #ff4b4b;
+  --ink: #0b0f16;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: #fff; font-family: 'Rajdhani', system-ui, sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
+canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+.hidden { display: none !important; }
+
+#hud { position: fixed; inset: 0; pointer-events: none; }
+.panel { position: absolute; top: 18px; padding: 10px 14px; background: linear-gradient(135deg, rgba(8,14,22,.72), rgba(8,14,22,.25)); border: 1px solid rgba(70,242,255,.25); border-radius: 6px; backdrop-filter: blur(4px); }
+.panel.left { left: 18px; width: min(320px, 46vw); }
+.panel.right { right: 18px; text-align: right; }
+.label { font-size: 11px; letter-spacing: 3px; color: rgba(255,255,255,.65); margin: 2px 0 4px; }
+.bar { height: 12px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; margin-bottom: 8px; border: 1px solid rgba(255,255,255,.12); }
+.bar > div { height: 100%; width: 100%; transition: width .15s; }
+.bar.hp > div { background: linear-gradient(90deg, #ff3d55, #ff9a5c); box-shadow: 0 0 10px #ff3d55; }
+.bar.time > div { background: linear-gradient(90deg, #2c7bff, var(--cyan)); box-shadow: 0 0 10px var(--cyan); }
+.bar.time.low > div { animation: blink .5s infinite alternate; }
+@keyframes blink { to { opacity: .35; } }
+#score { font-family: 'Cinzel', serif; font-size: 26px; color: var(--gold); text-shadow: 0 0 12px rgba(242,195,91,.5); }
+#weapon { font-size: 18px; font-weight: 700; letter-spacing: 2px; color: var(--cyan); }
+#weaponHint { font-size: 11px; opacity: .55; letter-spacing: 1px; }
+#combo { position: absolute; right: 26px; top: 120px; font-family: 'Cinzel', serif; font-size: 30px; color: #fff; text-shadow: 0 0 14px var(--gold); opacity: 0; transition: opacity .3s; }
+#zoneTitle { position: absolute; top: 22%; width: 100%; text-align: center; font-family: 'Cinzel', serif; font-size: clamp(28px, 5vw, 56px); letter-spacing: 8px; color: #fff; text-shadow: 0 0 24px rgba(242,195,91,.8); opacity: 0; transition: opacity .8s; }
+#msg { position: absolute; bottom: 16%; width: 100%; text-align: center; font-size: clamp(16px, 2.4vw, 24px); letter-spacing: 3px; color: var(--cyan); text-shadow: 0 0 10px rgba(70,242,255,.8); opacity: 0; transition: opacity .4s; }
+#boss { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); width: min(620px, 80vw); text-align: center; }
+#boss .name { font-family: 'Cinzel', serif; letter-spacing: 4px; font-size: 15px; color: var(--gold); margin-bottom: 6px; text-shadow: 0 0 8px #000; }
+#boss .bar { height: 14px; }
+#boss .bar > div { background: linear-gradient(90deg, #8a1010, #ff4b2b); box-shadow: 0 0 14px #ff4b2b; }
+#damage { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 50%, rgba(255,20,40,.55)); opacity: 0; transition: opacity .25s; }
+
+.screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(10,16,28,.55), rgba(0,0,0,.9)); padding: 16px; z-index: 5; }
+.card { max-width: 640px; width: 100%; text-align: center; padding: 30px 28px; border: 1px solid rgba(242,195,91,.35); background: linear-gradient(160deg, rgba(20,16,10,.85), rgba(6,10,18,.85)); border-radius: 10px; box-shadow: 0 0 60px rgba(70,242,255,.12); }
+.era { letter-spacing: 6px; font-size: 13px; color: var(--gold); }
+h1 { font-family: 'Cinzel', serif; font-weight: 800; font-size: clamp(40px, 9vw, 76px); margin: 8px 0 14px; letter-spacing: 6px; line-height: 1; }
+h1 span { display: block; color: var(--cyan); text-shadow: 0 0 22px rgba(70,242,255,.7); font-size: .62em; letter-spacing: 18px; margin-top: 6px; }
+h2 { font-family: 'Cinzel', serif; letter-spacing: 5px; margin-top: 0; }
+.story { font-size: 17px; line-height: 1.45; color: rgba(255,255,255,.85); }
+.story b { color: var(--gold); }
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; text-align: left; font-size: 15px; margin: 18px auto; max-width: 480px; color: rgba(255,255,255,.8); }
+kbd { display: inline-block; min-width: 22px; padding: 1px 6px; border: 1px solid rgba(255,255,255,.35); border-bottom-width: 3px; border-radius: 4px; font-family: inherit; font-size: 13px; text-align: center; background: rgba(255,255,255,.06); }
+button { font-family: 'Cinzel', serif; font-size: 18px; letter-spacing: 4px; padding: 14px 28px; color: #071016; background: linear-gradient(90deg, var(--gold), #ffe3a0); border: 0; border-radius: 4px; cursor: pointer; box-shadow: 0 0 24px rgba(242,195,91,.45); font-weight: 800; }
+button:hover { filter: brightness(1.1); }
+.foot { margin-top: 14px; font-size: 12px; opacity: .5; letter-spacing: 2px; }
+#loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; letter-spacing: 6px; background: #000; z-index: 10; }
+
+#touch { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
+#stick { position: absolute; left: 28px; bottom: 28px; width: 130px; height: 130px; border-radius: 50%; border: 2px solid rgba(255,255,255,.25); background: rgba(255,255,255,.05); pointer-events: auto; }
+#knob { position: absolute; left: 40px; top: 40px; width: 50px; height: 50px; border-radius: 50%; background: rgba(70,242,255,.45); box-shadow: 0 0 16px rgba(70,242,255,.6); }
+#tbtns { position: absolute; right: 20px; bottom: 24px; display: grid; grid-template-columns: repeat(2, 70px); gap: 12px; pointer-events: auto; }
+#tbtns button { width: 70px; height: 70px; padding: 0; border-radius: 50%; font-size: 26px; background: rgba(255,255,255,.12); color: #fff; box-shadow: none; border: 2px solid rgba(255,255,255,.3); }
+#tbtns button.small { width: 46px; height: 46px; font-size: 16px; }
+
+@media (max-width: 600px) {
+  .controls { grid-template-columns: 1fr; }
+  .panel { top: 10px; padding: 8px 10px; }
+  .panel.left { left: 10px; }
+  .panel.right { right: 10px; }
+  #score { font-size: 20px; }
+}
