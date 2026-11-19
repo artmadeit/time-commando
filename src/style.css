@@ -67,3 +67,12 @@ button:hover { filter: brightness(1.1); }
 .controls .tip b { color: var(--cyan); }
 #score { font-size: 20px; }
 }
+
+#zoneTitle small { display: block; font-size: .42em; letter-spacing: 5px; margin-top: 10px; color: var(--gold); }
+.levels { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin: 18px auto 0; max-width: 520px; text-align: left; }
+.lv-era { grid-column: 1 / -1; font-size: 11px; letter-spacing: 4px; color: rgba(255,255,255,.55); margin-top: 6px; }
+button.lv { font-family: 'Rajdhani', system-ui, sans-serif; font-size: 15px; letter-spacing: 1px; padding: 8px 12px; text-align: left; background: rgba(255,255,255,.06); color: #fff; border: 1px solid rgba(242,195,91,.3); box-shadow: none; font-weight: 600; }
+button.lv span { display: inline-block; width: 22px; color: var(--gold); font-family: 'Cinzel', serif; }
+button.lv:hover, button.lv:focus-visible { background: rgba(242,195,91,.16); outline: none; }
+.card { max-height: calc(100vh - 32px); overflow-y: auto; }
+@media (max-width: 600px) { .levels { grid-template-columns: 1fr; } }

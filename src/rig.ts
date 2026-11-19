@@ -62,8 +62,15 @@ export function sampleKeys(keys: Key[], t: number, out: Pose) {
   assign(out, keys[keys.length - 1].p);
 }
 
-export type RigKind = 'agent' | 'legionary' | 'brute' | 'retiarius' | 'centurion' | 'statue';
-export type WeaponType = 'fists' | 'gladius' | 'spear' | 'club' | 'trident' | 'centurion';
+export type RigKind = 'agent' | 'legionary' | 'brute' | 'retiarius' | 'centurion' | 'statue' | 'caveman' | 'sloth';
+export type WeaponType = 'fists' | 'gladius' | 'spear' | 'club' | 'trident' | 'centurion' | 'garrote' | 'flintspear' | 'claws';
+
+/** Interfaz común a humanoides y cuadrúpedos */
+export interface Body {
+  root: THREE.Group; pose: Pose; weapon: THREE.Group | null; cape: THREE.Mesh | null;
+  bladeBase: THREE.Object3D; bladeTip: THREE.Object3D;
+  apply(): void; flash(v: number, color?: number): void; telegraph(v: number): void; setOpacity(o: number): void;
+}
 
 export interface RigLook {
   skin: THREE.MeshStandardMaterial;
@@ -132,8 +139,9 @@ export class Rig {
 
     const glad = kind === 'brute' || kind === 'retiarius';
     const bare = glad;
-    const limbArm = kind === 'agent' || kind === 'statue' ? L.suit : L.skin;
-    const limbLeg = kind === 'agent' || kind === 'statue' ? L.suit : L.skin;
+    const furry = kind === 'sloth';
+    const limbArm = kind === 'agent' || kind === 'statue' || furry ? L.suit : L.skin;
+    const limbLeg = kind === 'agent' || kind === 'statue' || furry ? L.suit : L.skin;
 
     // --- Pelvis
     add(this.hips, new THREE.BoxGeometry(0.32, 0.16, 0.2), kind === 'agent' ? L.suit : L.leather, 0, 0, 0);
@@ -150,6 +158,10 @@ export class Rig {
       add(this.hips, new THREE.TorusGeometry(0.19, 0.035, 6, 18), L.armor, 0, 0.05, 0).rotation.x = Math.PI / 2;
     } else if (kind === 'agent') {
       add(this.hips, new THREE.BoxGeometry(0.34, 0.05, 0.22), L.accent, 0, 0.06, 0);
+    } else if (kind === 'caveman' || kind === 'sloth') {
+      const skirt = add(this.hips, new THREE.CylinderGeometry(0.2, 0.3, kind === 'sloth' ? 0.3 : 0.36, 9, 1, true), L.suit, 0, -0.15, 0);
+      skirt.scale.z = 0.85;
+      if (kind === 'caveman') add(this.hips, new THREE.TorusGeometry(0.19, 0.025, 5, 14), L.leather, 0, 0.03, 0).rotation.x = Math.PI / 2;
     }
 
     // --- Columna / torso
@@ -185,6 +197,15 @@ export class Rig {
           ph.rotation.x = Math.PI / 2;
         }
       }
+    } else if (kind === 'caveman') {
+      // piel cruzada sobre un hombro
+      const pelt = add(this.spine, new THREE.BoxGeometry(0.2, 0.62, 0.36), L.suit, 0.06, 0.25, 0);
+      pelt.rotation.z = -0.55;
+      add(this.spine, new THREE.CylinderGeometry(0.2, 0.22, 0.2, 10), L.suit, 0, 0.1, 0).scale.z = 0.85;
+      add(this.spine, new THREE.SphereGeometry(0.035, 6, 5), L.accent, -0.05, 0.42, 0.14); // collar de colmillo
+    } else if (kind === 'sloth') {
+      add(this.spine, new THREE.SphereGeometry(0.3, 16, 12), L.suit, 0, 0.12, 0.04).scale.set(1.15, 1.1, 1.05);
+      add(this.spine, new THREE.SphereGeometry(0.26, 16, 12), L.suit, 0, 0.42, -0.04).scale.set(1.3, 0.9, 1);
     } else if (glad) {
       const strap = add(this.spine, new THREE.BoxGeometry(0.06, 0.55, 0.02), L.leather, 0, 0.27, 0.13);
       strap.rotation.z = 0.6;
@@ -196,7 +217,7 @@ export class Rig {
     this.chest.add(this.head);
     this.head.position.y = 0.07;
     add(this.head, new THREE.CylinderGeometry(0.05, 0.06, 0.1, 10), L.skin, 0, 0.02, 0);
-    const skull = add(this.head, new THREE.SphereGeometry(0.115, 20, 16), kind === 'agent' ? L.suit : L.skin, 0, 0.16, 0.01);
+    const skull = add(this.head, new THREE.SphereGeometry(0.115, 20, 16), kind === 'agent' || furry ? L.suit : L.skin, 0, 0.16, 0.01);
     skull.scale.set(0.9, 1.05, 1);
     if (kind !== 'agent') {
       add(this.head, new THREE.BoxGeometry(0.05, 0.03, 0.04), L.skin, 0, 0.15, 0.115); // nariz
@@ -223,6 +244,20 @@ export class Rig {
         add(this.head, new THREE.SphereGeometry(0.025, 8, 6), L.accent, 0, 0.32, 0);
       } else {
         add(this.head, new THREE.BoxGeometry(0.04, 0.12, 0.3), L.armor, 0, 0.33, 0);
+      }
+    } else if (kind === 'caveman') {
+      const hair = add(this.head, new THREE.IcosahedronGeometry(0.14, 1), L.leather, 0, 0.21, -0.025);
+      hair.scale.set(1.05, 0.85, 1.05);
+      const beard = add(this.head, new THREE.IcosahedronGeometry(0.09, 1), L.leather, 0, 0.07, 0.07);
+      beard.scale.set(1.1, 1.1, 0.7);
+      add(this.head, new THREE.BoxGeometry(0.2, 0.025, 0.04), L.leather, 0, 0.2, 0.09); // ceja
+    } else if (kind === 'sloth') {
+      const snout = add(this.head, new THREE.CapsuleGeometry(0.075, 0.14, 4, 10), L.suit, 0, 0.12, 0.13);
+      snout.rotation.x = Math.PI / 2 + 0.3;
+      add(this.head, new THREE.SphereGeometry(0.04, 8, 6), L.leather, 0, 0.09, 0.24);
+      for (const sd of [-1, 1]) {
+        add(this.head, new THREE.SphereGeometry(0.035, 8, 6), L.suit, sd * 0.09, 0.24, -0.02);
+        add(this.head, new THREE.SphereGeometry(0.018, 6, 5), L.accent, sd * 0.06, 0.19, 0.1).castShadow = false;
       }
     } else if (kind === 'retiarius') {
       const hair = add(this.head, new THREE.SphereGeometry(0.122, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), L.leather, 0, 0.175, -0.005);
@@ -270,7 +305,14 @@ export class Rig {
       if (kind === 'legionary' || kind === 'centurion' || glad) add(el, new THREE.CylinderGeometry(0.058, 0.055, 0.1, 10), L.leather, 0, -0.2, 0);
       el.add(hand);
       hand.position.y = -0.28;
-      add(hand, new THREE.SphereGeometry(0.055, 10, 8), kind === 'agent' ? L.armor : L.skin, 0, 0, 0.01).scale.set(0.9, 1, 1.1);
+      add(hand, new THREE.SphereGeometry(0.055, 10, 8), kind === 'agent' ? L.armor : furry ? L.suit : L.skin, 0, 0, 0.01).scale.set(0.9, 1, 1.1);
+      if (furry) {
+        // garras largas
+        for (let i = -1; i <= 1; i++) {
+          const claw = add(hand, new THREE.ConeGeometry(0.018, 0.2, 6), L.accent, i * 0.03, -0.1, 0.05);
+          claw.rotation.x = Math.PI - 0.5;
+        }
+      }
     };
     arm(1, this.lSh, this.lEl, this.lHand);
     arm(-1, this.rSh, this.rEl, this.rHand);
@@ -313,11 +355,11 @@ export class Rig {
     this.apply();
   }
 
-  setWeapon(type: WeaponType, mats: { metal: THREE.MeshStandardMaterial; wood: THREE.MeshStandardMaterial; leather: THREE.MeshStandardMaterial; gold: THREE.MeshStandardMaterial; glow: THREE.MeshStandardMaterial }) {
+  setWeapon(type: WeaponType, mats: { metal: THREE.MeshStandardMaterial; wood: THREE.MeshStandardMaterial; leather: THREE.MeshStandardMaterial; gold: THREE.MeshStandardMaterial; glow: THREE.MeshStandardMaterial; stone?: THREE.MeshStandardMaterial }) {
     if (this.weapon) this.rHand.remove(this.weapon);
     this.weapon = null;
     this.weaponMats = [];
-    if (type === 'fists') {
+    if (type === 'fists' || type === 'claws') {
       this.bladeBase.position.set(0, 0, 0.05);
       this.bladeTip.position.set(0, 0, 0.12);
       this.rHand.add(this.bladeBase, this.bladeTip);
@@ -363,6 +405,21 @@ export class Rig {
       }
       this.bladeBase.position.set(0, 0, 0.9);
       this.bladeTip.position.set(0, 0, 1.66);
+    } else if (type === 'garrote') {
+      mk(new THREE.CylinderGeometry(0.035, 0.03, 0.8, 7), mats.wood, 0, 0, 0.3).rotation.x = Math.PI / 2;
+      const knob = mk(new THREE.IcosahedronGeometry(0.11, 0), mats.wood, 0, 0, 0.72);
+      knob.scale.set(1, 1, 1.6);
+      for (let i = 0; i < 3; i++) mk(new THREE.TorusGeometry(0.04, 0.008, 4, 10), mats.leather, 0, 0, 0.02 + i * 0.03);
+      this.weaponMats.push(metal);
+      this.bladeBase.position.set(0, 0, 0.45);
+      this.bladeTip.position.set(0, 0, 0.9);
+    } else if (type === 'flintspear') {
+      mk(new THREE.CylinderGeometry(0.02, 0.022, 1.9, 7), mats.wood, 0, 0, 0.3).rotation.x = Math.PI / 2;
+      const tip = mk(new THREE.OctahedronGeometry(0.07, 0), mats.stone ?? metal, 0, 0, 1.33);
+      tip.scale.set(0.7, 0.35, 2.2);
+      mk(new THREE.TorusGeometry(0.025, 0.01, 4, 10), mats.leather, 0, 0, 1.2);
+      this.bladeBase.position.set(0, 0, 0.9);
+      this.bladeTip.position.set(0, 0, 1.5);
     } else if (type === 'trident') {
       mk(new THREE.CylinderGeometry(0.018, 0.02, 1.9, 8), mats.wood, 0, 0, 0.3).rotation.x = Math.PI / 2;
       mk(new THREE.BoxGeometry(0.26, 0.025, 0.03), metal, 0, 0, 1.26);
@@ -483,11 +540,18 @@ export function guardPose(p: Pose, weapon: WeaponType, t: number, blocking = fal
       break;
     case 'spear':
     case 'trident':
+    case 'flintspear':
       p.lShP = 0.9; p.lEl = 0.9; p.lShA = 0.1;
       p.rShP = 0.3; p.rEl = 1.25; p.rShA = 0.25; p.rWr = 1.25;
       p.spineY = 0.35;
       break;
+    case 'claws':
+      p.lShP = 0.5; p.lEl = 0.6; p.lShA = 0.25;
+      p.rShP = 0.5; p.rEl = 0.6; p.rShA = 0.25;
+      p.spineX = 0.45 + br; p.headX = -0.4;
+      break;
     case 'club':
+    case 'garrote':
       p.lShP = 0.6; p.lEl = 1.2; p.lShA = 0.2;
       p.rShP = 0.35; p.rEl = 1.4; p.rShA = 0.25; p.rWr = -0.3;
       p.spineY = 0.1;

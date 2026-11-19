@@ -405,3 +405,113 @@ export function repeat(p: TexPair, x: number, y: number): TexPair {
   map.needsUpdate = bump.needsUpdate = true;
   return { map, bump };
 }
+
+/** Pelaje: trazos cortos de pelo */
+export function fur(hue: number, sat: number, light: number, seed: number): TexPair {
+  const r = rng(seed);
+  const [cc, c] = makeCanvas(256);
+  const [hc, h] = makeCanvas(256);
+  c.fillStyle = hsl(hue, sat, light);
+  c.fillRect(0, 0, 256, 256);
+  h.fillStyle = gray(128);
+  h.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 2600; i++) {
+    const x = r() * 256, y = r() * 256, len = 4 + r() * 8, a = Math.PI / 2 + (r() - 0.5) * 0.6;
+    const l = light + (r() - 0.5) * 22;
+    c.strokeStyle = hsl(hue + (r() - 0.5) * 8, sat, l);
+    h.strokeStyle = gray(80 + r() * 150);
+    c.lineWidth = h.lineWidth = 1 + r();
+    for (const ctx of [c, h]) {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+      ctx.stroke();
+    }
+  }
+  return finish(cc, hc);
+}
+
+/** Lava agrietada: devuelve además un mapa emisivo */
+export function lava(seed: number): TexPair & { emissive: THREE.Texture } {
+  const r = rng(seed);
+  const [cc, c] = makeCanvas(S);
+  const [ec, e] = makeCanvas(S);
+  const [hc, h] = makeCanvas(S);
+  c.fillStyle = '#1a120e';
+  c.fillRect(0, 0, S, S);
+  e.fillStyle = '#000';
+  e.fillRect(0, 0, S, S);
+  h.fillStyle = gray(200);
+  h.fillRect(0, 0, S, S);
+  stains(c, S, r, 60, 'rgba(60,40,30,0.4)', 70);
+  e.filter = 'blur(2px)';
+  for (let i = 0; i < 40; i++) {
+    let x = r() * S, y = r() * S, a = r() * Math.PI * 2;
+    const w = 2 + r() * 5;
+    for (const [ctx, col, lw] of [[e, '#ff7a1a', w * 2], [c, '#ff5a10', w], [h, gray(20), w * 1.5]] as const) {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = lw;
+    }
+    const pts: [number, number][] = [[x, y]];
+    for (let k = 0; k < 10; k++) { a += (r() - 0.5) * 1.2; x += Math.cos(a) * 18; y += Math.sin(a) * 18; pts.push([x, y]); }
+    for (const ctx of [e, c, h]) {
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (const [px, py] of pts) ctx.lineTo(px, py);
+      ctx.stroke();
+    }
+  }
+  e.filter = 'none';
+  grain(c, S, 20, r);
+  const p = finish(cc, hc);
+  const emissive = new THREE.CanvasTexture(ec);
+  emissive.colorSpace = THREE.SRGBColorSpace;
+  emissive.wrapS = emissive.wrapT = THREE.RepeatWrapping;
+  return { ...p, emissive };
+}
+
+/** Pintura rupestre: manos y animales en ocre sobre roca */
+export function cavePainting(seed: number): THREE.Texture {
+  const r = rng(seed);
+  const [cc, c] = makeCanvas(S);
+  c.fillStyle = hsl(30, 18, 46);
+  c.fillRect(0, 0, S, S);
+  stains(c, S, r, 70, 'rgba(30,20,10,0.25)', 80);
+  stains(c, S, r, 50, 'rgba(230,210,180,0.15)', 60);
+  const ochre = ['rgba(150,50,25,0.85)', 'rgba(110,40,20,0.8)', 'rgba(40,25,20,0.85)'];
+  // manos en negativo
+  for (let i = 0; i < 7; i++) {
+    const x = 40 + r() * (S - 80), y = 40 + r() * 140;
+    c.fillStyle = ochre[Math.floor(r() * 2)];
+    c.beginPath(); c.ellipse(x, y, 16, 20, 0, 0, Math.PI * 2); c.fill();
+    for (let f = 0; f < 5; f++) {
+      const a = -Math.PI / 2 + (f - 2) * 0.38;
+      c.beginPath(); c.ellipse(x + Math.cos(a) * 26, y + Math.sin(a) * 26, 5, 11, a + Math.PI / 2, 0, Math.PI * 2); c.fill();
+    }
+  }
+  // animales: cuerpo, patas, cuernos/colmillos
+  for (let i = 0; i < 6; i++) {
+    const x = 70 + r() * (S - 140), y = 230 + r() * 220, s = 0.7 + r() * 0.6;
+    c.fillStyle = c.strokeStyle = ochre[Math.floor(r() * 3)];
+    c.lineWidth = 5 * s;
+    c.beginPath(); c.ellipse(x, y, 48 * s, 22 * s, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(x + 50 * s, y - 14 * s, 14 * s, 11 * s, 0.3, 0, Math.PI * 2); c.fill();
+    for (const lx of [-30, -14, 18, 34]) { c.beginPath(); c.moveTo(x + lx * s, y + 12 * s); c.lineTo(x + lx * s + 4, y + 46 * s); c.stroke(); }
+    c.beginPath(); c.moveTo(x + 58 * s, y - 6 * s); c.quadraticCurveTo(x + 80 * s, y + 4 * s, x + 74 * s, y + 24 * s); c.stroke();
+  }
+  // cazadores
+  for (let i = 0; i < 5; i++) {
+    const x = 40 + r() * (S - 80), y = 300 + r() * 180;
+    c.strokeStyle = ochre[2];
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(x, y); c.lineTo(x, y + 26); c.moveTo(x, y + 26); c.lineTo(x - 8, y + 44); c.moveTo(x, y + 26); c.lineTo(x + 8, y + 44);
+    c.moveTo(x - 10, y + 8); c.lineTo(x + 12, y + 8); c.moveTo(x + 12, y - 16); c.lineTo(x + 12, y + 40);
+    c.stroke();
+    c.beginPath(); c.arc(x, y - 6, 5, 0, Math.PI * 2); c.stroke();
+  }
+  grain(c, S, 20, r);
+  const t = new THREE.CanvasTexture(cc);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}

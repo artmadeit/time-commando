@@ -31,6 +31,11 @@ export function makeMaterials() {
   const dirtT = T.sand(30, 28, 42, 62);
   const woodT = T.wood(71);
   const rockT = T.rocky(81);
+  const grassT = T.sand(78, 30, 36, 63);
+  const ashT = T.sand(20, 8, 24, 64);
+  const lavaT = T.lava(91);
+  const lavaMat = new THREE.MeshStandardMaterial({ map: lavaT.map, emissiveMap: lavaT.emissive, emissive: 0xffffff, emissiveIntensity: 2.2, bumpMap: lavaT.bump, bumpScale: 3, roughness: 0.9 });
+  const furCache = new Map<string, THREE.MeshStandardMaterial>();
 
   return {
     sandstone: (rx = 1, ry = 1) => std(sandstoneT, rx, ry, {}, 3),
@@ -49,6 +54,22 @@ export function makeMaterials() {
     cloth: (hue: number, sat: number, light: number, stripes = false) => {
       const p = T.cloth(hue, sat, light, (hue * 7 + light) | 0, stripes);
       return new THREE.MeshStandardMaterial({ map: p.map, bumpMap: p.bump, bumpScale: 1, roughness: 0.95, side: THREE.DoubleSide });
+    },
+    grassland: (rx = 1, ry = 1) => std(grassT, rx, ry, { roughness: 1 }, 2),
+    ash: (rx = 1, ry = 1) => std(ashT, rx, ry, { roughness: 1 }, 3),
+    lava: lavaMat,
+    tar: new THREE.MeshStandardMaterial({ color: 0x050403, roughness: 0.08, metalness: 0.4 }),
+    bone: new THREE.MeshStandardMaterial({ color: 0xe0d6bf, roughness: 0.6 }),
+    painting: new THREE.MeshStandardMaterial({ map: T.cavePainting(101), roughness: 0.95 }),
+    fur: (hue: number, sat: number, light: number) => {
+      const k = `${hue}:${sat}:${light}`;
+      let m = furCache.get(k);
+      if (!m) {
+        const p = T.fur(hue, sat, light, hue * 13 + light);
+        m = new THREE.MeshStandardMaterial({ map: p.map, bumpMap: p.bump, bumpScale: 2, roughness: 0.95 });
+        furCache.set(k, m);
+      }
+      return m;
     },
     bronze: new THREE.MeshStandardMaterial({ color: 0xb37a3c, metalness: 1, roughness: 0.32 }),
     gold: new THREE.MeshStandardMaterial({ color: 0xe8b94a, metalness: 1, roughness: 0.25 }),

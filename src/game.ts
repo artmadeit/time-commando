@@ -6,35 +6,48 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { makeMaterials, type Mats } from './materials';
 import { Level, resolveCircle } from './level';
-import { Rig, basePose, copyPose, guardPose, locomotion, hitPose, deathPose, sampleKeys, type RigLook, type WeaponType, type Pose } from './rig';
-import { PLAYER_COMBOS, KICK, LEGION_ATTACKS, SPEAR_ATTACKS, TRIDENT_ATTACKS, BRUTE_ATTACKS, BOSS_ATTACKS, type AttackDef } from './combat';
+import { Rig, basePose, copyPose, guardPose, locomotion, hitPose, deathPose, sampleKeys, type RigLook, type RigKind, type WeaponType, type Pose, type Body } from './rig';
+import { Quadruped, beastIdle, beastGait, beastHit, beastDeath, type BeastLook } from './beast';
+import { KICK, LEGION_ATTACKS, SPEAR_ATTACKS, TRIDENT_ATTACKS, BRUTE_ATTACKS, BOSS_ATTACKS, CAVE_ATTACKS, CAT_ATTACKS, SLOTH_ATTACKS, MEGA_ATTACKS, playerCombo, type AttackDef } from './combat';
 import { Particles, Trail, Rings, energyMaterial } from './fx';
 import { Input } from './input';
 import { Audio } from './audio';
+import { LEVELS, type EnemyKind, type LevelDef, type SpawnDef, type SkyDef } from './levels';
+import { buildValley, buildTarPits } from './prehistory';
 
-type EnemyKind = 'legionary' | 'spearman' | 'retiarius' | 'brute' | 'centurion';
-type PlayerWeapon = 'fists' | 'gladius' | 'spear' | 'club' | 'trident';
+type PlayerWeapon = 'fists' | 'gladius' | 'spear' | 'club' | 'trident' | 'garrote' | 'flintspear';
 
-const STATS: Record<EnemyKind, { hp: number; speed: number; scale: number; radius: number; weapon: WeaponType; shield: boolean; block: number; attacks: AttackDef[]; score: number }> = {
-  legionary: { hp: 55, speed: 2.7, scale: 1.0, radius: 0.45, weapon: 'gladius', shield: true, block: 0.4, attacks: LEGION_ATTACKS, score: 100 },
-  spearman: { hp: 50, speed: 2.5, scale: 1.0, radius: 0.45, weapon: 'spear', shield: false, block: 0.15, attacks: SPEAR_ATTACKS, score: 120 },
-  retiarius: { hp: 70, speed: 3.6, scale: 1.0, radius: 0.45, weapon: 'trident', shield: false, block: 0, attacks: TRIDENT_ATTACKS, score: 180 },
-  brute: { hp: 160, speed: 2.1, scale: 1.3, radius: 0.6, weapon: 'club', shield: false, block: 0, attacks: BRUTE_ATTACKS, score: 250 },
-  centurion: { hp: 560, speed: 3.3, scale: 1.18, radius: 0.55, weapon: 'centurion', shield: true, block: 0.35, attacks: BOSS_ATTACKS, score: 2500 },
+interface Stat {
+  hp: number; speed: number; scale: number; radius: number; weapon: WeaponType; shield: boolean; block: number;
+  attacks: AttackDef[]; score: number; rig: RigKind | 'beast'; chips: number;
+  boss?: string; armored?: boolean; drop?: PlayerWeapon; chestY?: number; reach?: number;
+}
+
+const STATS: Record<EnemyKind, Stat> = {
+  // Roma
+  legionary: { hp: 55, speed: 2.7, scale: 1.0, radius: 0.45, weapon: 'gladius', shield: true, block: 0.4, attacks: LEGION_ATTACKS, score: 100, rig: 'legionary', chips: 1, drop: 'gladius' },
+  spearman: { hp: 50, speed: 2.5, scale: 1.0, radius: 0.45, weapon: 'spear', shield: false, block: 0.15, attacks: SPEAR_ATTACKS, score: 120, rig: 'legionary', chips: 1, drop: 'spear' },
+  retiarius: { hp: 70, speed: 3.6, scale: 1.0, radius: 0.45, weapon: 'trident', shield: false, block: 0, attacks: TRIDENT_ATTACKS, score: 180, rig: 'retiarius', chips: 2, drop: 'trident' },
+  brute: { hp: 160, speed: 2.1, scale: 1.3, radius: 0.6, weapon: 'club', shield: false, block: 0, attacks: BRUTE_ATTACKS, score: 250, rig: 'brute', chips: 3, armored: true, drop: 'club' },
+  centurion: { hp: 560, speed: 3.3, scale: 1.18, radius: 0.55, weapon: 'centurion', shield: true, block: 0.35, attacks: BOSS_ATTACKS, score: 2500, rig: 'centurion', chips: 6, boss: 'VARRO, CENTURIÓN DE LA BRECHA' },
+  // Prehistoria
+  caveman: { hp: 45, speed: 2.8, scale: 1.0, radius: 0.45, weapon: 'garrote', shield: false, block: 0.1, attacks: CAVE_ATTACKS, score: 90, rig: 'caveman', chips: 1, drop: 'garrote' },
+  hunter: { hp: 40, speed: 2.7, scale: 1.0, radius: 0.45, weapon: 'flintspear', shield: false, block: 0.1, attacks: SPEAR_ATTACKS, score: 110, rig: 'caveman', chips: 1, drop: 'flintspear' },
+  sabertooth: { hp: 70, speed: 5.2, scale: 1.0, radius: 0.65, weapon: 'fists', shield: false, block: 0, attacks: CAT_ATTACKS, score: 200, rig: 'beast', chips: 2, chestY: 0.8, reach: 4.6 },
+  sloth: { hp: 180, speed: 1.9, scale: 1.55, radius: 0.75, weapon: 'claws', shield: false, block: 0, attacks: SLOTH_ATTACKS, score: 300, rig: 'sloth', chips: 3, armored: true },
+  alphacat: { hp: 430, speed: 6.0, scale: 1.55, radius: 0.95, weapon: 'fists', shield: false, block: 0, attacks: CAT_ATTACKS, score: 2500, rig: 'beast', chips: 6, chestY: 0.8, reach: 4.8, boss: 'GARRA GRIS, DIENTES DE SABLE ALFA' },
+  megatherium: { hp: 680, speed: 2.4, scale: 2.3, radius: 1.05, weapon: 'claws', shield: false, block: 0, attacks: MEGA_ATTACKS, score: 3000, rig: 'sloth', chips: 7, armored: true, boss: 'MEGATERIO, EL COLOSO DE LA BREA' },
 };
 
-const WEAPON_NAME: Record<PlayerWeapon, string> = { fists: 'PUÑOS', gladius: 'GLADIUS', spear: 'PILUM', club: 'MAZA', trident: 'TRIDENTE' };
-const WEAPON_LEN: Record<PlayerWeapon, number> = { fists: 0, gladius: 0.85, spear: 1.7, club: 1.0, trident: 1.65 };
-// arma que suelta cada tipo de enemigo al ser derrotado
-const DROPS: Partial<Record<EnemyKind, PlayerWeapon>> = { legionary: 'gladius', spearman: 'spear', brute: 'club', retiarius: 'trident' };
+const WEAPON_NAME: Record<PlayerWeapon, string> = { fists: 'PUÑOS', gladius: 'GLADIUS', spear: 'PILUM', club: 'MAZA', trident: 'TRIDENTE', garrote: 'GARROTE', flintspear: 'LANZA DE SÍLEX' };
+const WEAPON_LEN: Record<PlayerWeapon, number> = { fists: 0, gladius: 0.85, spear: 1.7, club: 1.0, trident: 1.65, garrote: 0.95, flintspear: 1.6 };
 const WEAPON_HINT: Record<PlayerWeapon, string> = {
   fists: '', gladius: 'GLADIUS · combo de tres tajos', spear: 'PILUM · gran alcance',
   club: 'MAZA · lenta, pero rompe guardias', trident: 'TRIDENTE · estocadas rápidas',
+  garrote: 'GARROTE · golpes pesados que rompen guardias', flintspear: 'LANZA DE SÍLEX · gran alcance',
 };
-const RIG_OF: Record<EnemyKind, 'legionary' | 'brute' | 'retiarius' | 'centurion'> = { legionary: 'legionary', spearman: 'legionary', retiarius: 'retiarius', brute: 'brute', centurion: 'centurion' };
 
-interface Spawn { k: EnemyKind; x: number; z: number }
-interface Zone { trigger: number; wallStop: number; gate: number; trap?: number; waves: Spawn[][]; started: boolean; wave: number; done: boolean }
+interface Zone { trigger: number; wallStop: number; gate: number; trap?: number; waves: SpawnDef[][]; started: boolean; wave: number; done: boolean }
 
 const tmpV = new THREE.Vector3();
 const tmpV2 = new THREE.Vector3();
@@ -68,11 +81,12 @@ class Fighter {
   stun = 0;
   target: Pose = basePose();
   trail: Trail;
-  constructor(public rig: Rig, trailColor: THREE.Color) {
+  chestY = 1.25;
+  constructor(public rig: Body, trailColor: THREE.Color) {
     this.trail = new Trail(trailColor);
   }
   chest(out = new THREE.Vector3()) {
-    return out.copy(this.pos).setY(1.25 * this.rig.root.scale.y);
+    return out.copy(this.pos).setY(this.chestY * this.rig.root.scale.y);
   }
 }
 
@@ -87,17 +101,22 @@ class Enemy extends Fighter {
   slammed = false;
   enraged = false;
   phase = Math.random() * 10;
-  constructor(kind: EnemyKind, rig: Rig) {
-    super(rig, new THREE.Color(kind === 'centurion' ? 0xff5a2a : 0xffa860));
+  constructor(kind: EnemyKind, rig: Body) {
+    super(rig, new THREE.Color(STATS[kind].boss ? 0xff5a2a : 0xffa860));
     this.kind = kind;
     const s = STATS[kind];
     this.hp = this.maxHp = s.hp;
     this.radius = s.radius;
+    this.chestY = s.chestY ?? 1.25;
     this.state = 'spawn';
+    if (s.rig === 'beast') this.ringDist = 4.5 + Math.random() * 2;
   }
-  /** rango de ataque (para decidir cuándo atacar) */
+  get st() { return STATS[this.kind]; }
+  get beast() { return STATS[this.kind].rig === 'beast'; }
+  /** distancia a la que decide atacar */
   atkRange() {
     const st = STATS[this.kind];
+    if (st.reach) return st.reach * Math.sqrt(st.scale);
     return Math.min(...st.attacks.map((a) => a.range)) * st.scale;
   }
 }
@@ -111,7 +130,7 @@ export class Game {
   sun: THREE.DirectionalLight;
   sunDir = new THREE.Vector3(-0.45, 0.42, 0.78).normalize();
   m: Mats;
-  level: Level;
+  level!: Level;
   input: Input;
   audio = new Audio();
   sparks = new Particles(2500, true);
@@ -136,6 +155,7 @@ export class Game {
   private playerSlammed = false;
   zones: Zone[] = [];
   looks!: Record<'agent' | EnemyKind, RigLook>;
+  beastLooks!: Record<'sabertooth' | 'alphacat', BeastLook>;
   weaponMats!: Parameters<Rig['setWeapon']>[1];
   shieldMat!: THREE.MeshStandardMaterial;
 
@@ -158,6 +178,15 @@ export class Game {
   bossRef: Enemy | null = null;
   reinforced = false;
   shownTitles = new Set<string>();
+  levelIdx = 0;
+  def: LevelDef = LEVELS[0];
+  levelScore = 0;
+  sky = new Sky();
+  envSky = new Sky();
+  envScene = new THREE.Scene();
+  pm!: THREE.PMREMGenerator;
+  envRT: THREE.WebGLRenderTarget | null = null;
+  hemi = new THREE.HemisphereLight(0xcfdcff, 0x6b4f33, 0.65);
   overT = -1;
   noRender = false;
 
@@ -183,25 +212,14 @@ export class Game {
     this.scene.fog = new THREE.FogExp2(0xd8b48c, 0.0065);
 
     // Cielo de atardecer + iluminación basada en imagen
-    const sky = new Sky();
-    sky.scale.setScalar(4000);
-    const u = sky.material.uniforms;
-    u.turbidity.value = 6;
-    u.rayleigh.value = 1.6;
-    u.mieCoefficient.value = 0.006;
-    u.mieDirectionalG.value = 0.86;
-    u.sunPosition.value.copy(this.sunDir);
-    this.scene.add(sky);
-    const pm = new THREE.PMREMGenerator(this.renderer);
-    const envScene = new THREE.Scene();
-    const sky2 = new Sky();
-    sky2.scale.setScalar(4000);
-    for (const k of Object.keys(u)) (sky2.material.uniforms as Record<string, THREE.IUniform>)[k].value = u[k].value;
-    envScene.add(sky2);
-    this.scene.environment = pm.fromScene(envScene, 0.02).texture;
+    this.sky.scale.setScalar(4000);
+    this.sky.material.uniforms.mieDirectionalG.value = 0.86;
+    this.scene.add(this.sky);
+    this.pm = new THREE.PMREMGenerator(this.renderer);
+    this.envSky.scale.setScalar(4000);
+    this.envScene.add(this.envSky);
     this.scene.environmentIntensity = 0.55;
-
-    this.scene.add(new THREE.HemisphereLight(0xcfdcff, 0x6b4f33, 0.65));
+    this.scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(0xffd6a0, 3.4);
     this.sun.castShadow = true;
     const sz = this.isMobile || this.low ? 1024 : 2048;
@@ -218,8 +236,6 @@ export class Game {
     // Materiales y nivel
     this.m = makeMaterials();
     this.makeLooks();
-    this.level = new Level(this.m, this.statueLook());
-    this.scene.add(this.level.group);
     this.scene.add(this.sparks.points, this.dust.points, this.rings.group);
 
     this.riftMat = energyMaterial(0x7a2cff, 0x22e6ff, 0);
@@ -241,7 +257,59 @@ export class Game {
     }
     addEventListener('resize', () => this.resize());
     this.resize();
+    this.loadLevel(0);
+  }
+
+  // ------------------------------------------------------------------ niveles
+  loadLevel(i: number) {
+    this.levelIdx = i;
+    this.def = LEVELS[i];
+    if (this.level) {
+      this.scene.remove(this.level.group);
+      this.level.group.traverse((o) => { if ((o as THREE.Mesh).geometry) (o as THREE.Mesh).geometry.dispose(); });
+    }
+    const b = this.def.build;
+    this.level = b === 'rome' ? new Level(this.m, this.statueLook()) : new Level(this.m, null, b === 'valley' ? buildValley : buildTarPits);
+    this.scene.add(this.level.group);
+    this.applySky(this.def.sky);
+    this.levelScore = this.score;
     this.reset();
+  }
+
+  private applySky(k: SkyDef) {
+    this.sunDir.set(...k.sun).normalize();
+    for (const sk of [this.sky, this.envSky]) {
+      const u = sk.material.uniforms;
+      u.turbidity.value = k.turbidity;
+      u.rayleigh.value = k.rayleigh;
+      u.mieCoefficient.value = k.mie;
+      u.mieDirectionalG.value = 0.86;
+      u.sunPosition.value.copy(this.sunDir);
+    }
+    if (this.envRT) this.envRT.dispose();
+    this.envRT = this.pm.fromScene(this.envScene, 0.02);
+    this.scene.environment = this.envRT.texture;
+    const fog = this.scene.fog as THREE.FogExp2;
+    fog.color.setHex(k.fog);
+    fog.density = k.fogDensity;
+    this.sun.color.setHex(k.sunColor);
+    this.sun.intensity = k.sunIntensity;
+    this.hemi.color.setHex(k.hemiSky);
+    this.hemi.groundColor.setHex(k.hemiGround);
+    this.hemi.intensity = k.hemi;
+    this.renderer.toneMappingExposure = k.exposure;
+  }
+
+  /** botón de la pantalla final: siguiente nivel, reintentar o volver a empezar */
+  continueAfterEnd() {
+    if (this.state === 'win') {
+      if (this.levelIdx < LEVELS.length - 1) this.loadLevel(this.levelIdx + 1);
+      else { this.score = 0; this.loadLevel(0); }
+    } else {
+      this.score = this.levelScore;
+      this.reset();
+    }
+    this.start();
   }
 
   private makeLooks() {
@@ -258,8 +326,19 @@ export class Game {
       retiarius: { skin: S(0xc08a64, 0.65), suit: S(0x1d4f8a, 0.8), armor: S(0xb4b9c0, 0.3, 0.95), accent: this.m.bronze, leather: S(0x24160e, 0.9) },
       brute: { skin: S(0xa66d4e, 0.7), suit: S(0x4a3020, 0.8), armor: S(0x45484e, 0.4, 0.9), accent: this.m.bronze, leather: S(0x3e2716, 0.85) },
       centurion: { skin: S(0xb07a58, 0.75), suit: deepRed, armor: S(0xd8dce2, 0.18, 1), accent: this.m.gold, leather: S(0x3a2414, 0.8) },
+      caveman: { skin: S(0xa8724e, 0.75), suit: this.m.fur(30, 35, 34), armor: this.m.bone, accent: this.m.bone, leather: S(0x2a1c12, 0.95) },
+      hunter: { skin: S(0x9c6a48, 0.75), suit: this.m.fur(35, 12, 52), armor: this.m.bone, accent: this.m.bone, leather: S(0x3a2a1c, 0.95) },
+      sloth: { skin: this.m.fur(28, 30, 30), suit: this.m.fur(28, 30, 30), armor: this.m.bone, accent: S(0x1a1410, 0.4), leather: S(0x14100c, 0.6) },
+      megatherium: { skin: this.m.fur(20, 22, 22), suit: this.m.fur(20, 22, 22), armor: this.m.bone, accent: S(0x2a1810, 0.4, 0, 0xff5a1a, 0.6), leather: S(0x0e0a08, 0.6) },
+      sabertooth: { skin: S(0), suit: S(0), armor: S(0), accent: S(0), leather: S(0) },
+      alphacat: { skin: S(0), suit: S(0), armor: S(0), accent: S(0), leather: S(0) },
     };
-    this.weaponMats = { metal: this.m.iron, wood: this.m.wood(), leather: S(0x3a2414, 0.8), gold: this.m.gold, glow: S(0x061a1e, 0.4, 0, 0x46f2ff, 5) };
+    const eye = S(0x1a1000, 0.3, 0, 0xffb020, 2.5);
+    this.beastLooks = {
+      sabertooth: { fur: this.m.fur(34, 45, 46), belly: this.m.fur(38, 30, 66), fang: S(0xf0e8d6, 0.35), dark: S(0x4a3220, 0.9), eye },
+      alphacat: { fur: this.m.fur(30, 8, 58), belly: this.m.fur(30, 6, 76), fang: S(0xf6f0e2, 0.3), dark: S(0x2a2624, 0.9), eye: S(0x1a0000, 0.3, 0, 0xff3a20, 3) },
+    };
+    this.weaponMats = { metal: this.m.iron, wood: this.m.wood(), leather: S(0x3a2414, 0.8), gold: this.m.gold, glow: S(0x061a1e, 0.4, 0, 0x46f2ff, 5), stone: S(0x4a4640, 0.55, 0.1) };
     this.shieldMat = S(0x8e1a16, 0.55, 0.1);
   }
 
@@ -292,7 +371,7 @@ export class Game {
 
     const rig = new Rig('agent', this.looks.agent, 1);
     this.player = new Fighter(rig, new THREE.Color(0x46f2ff));
-    this.player.pos.set(0, 0, 2);
+    this.player.pos.set(this.def.spawn[0], 0, this.def.spawn[1]);
     this.player.maxHp = this.player.hp = 100;
     rig.setWeapon('fists', this.weaponMats);
     this.scene.add(rig.root, this.player.trail.mesh);
@@ -303,28 +382,12 @@ export class Game {
 
     this.chips = 0;
 
-    this.level.closeGate(0);
-    this.level.closeGate(1);
-    this.level.openGate(2);
-    this.zones = [
-      { trigger: 17, wallStop: -4, gate: 0, waves: [[{ k: 'legionary', x: -3, z: 29 }, { k: 'legionary', x: 3.5, z: 33 }]], started: false, wave: 0, done: false },
-      {
-        trigger: 54, wallStop: 46, gate: 1,
-        waves: [
-          [{ k: 'legionary', x: -3, z: 66 }, { k: 'spearman', x: 3, z: 68 }, { k: 'brute', x: 0, z: 74 }],
-          [{ k: 'spearman', x: -3.5, z: 84 }, { k: 'retiarius', x: 0, z: 80 }, { k: 'legionary', x: 3.5, z: 86 }, { k: 'spearman', x: 0, z: 92 }],
-        ],
-        started: false, wave: 0, done: false,
-      },
-      {
-        trigger: 129, wallStop: 112, gate: -1, trap: 2,
-        waves: [[{ k: 'centurion', x: 0, z: 160 }, { k: 'retiarius', x: -6, z: 155 }, { k: 'retiarius', x: 6, z: 155 }]],
-        started: false, wave: 0, done: false,
-      },
-    ];
-    this.wallZ = -9;
+    for (const g of this.def.closed) this.level.closeGate(g);
+    for (const g of this.def.open) this.level.openGate(g);
+    this.zones = this.def.zones.map((z) => ({ ...z, started: false, wave: 0, done: false }));
+    this.wallZ = this.def.wallStart;
+    this.riftWall.position.z = this.wallZ;
     this.flux = 100;
-    this.score = 0;
     this.comboCount = 0;
     this.elapsed = 0;
     this.bossRef = null;
@@ -334,10 +397,12 @@ export class Game {
     this.slowT = 0;
     this.overT = -1;
     this.player.facing = 0;
-    this.camOff.set(3.2, 4.4, -7.2);
+    this.camOff.set(...this.def.cams[0].off);
     this.camPos.copy(this.player.pos).add(this.camOff).add(new THREE.Vector3(0, 6, -6));
     this.camLook.copy(this.player.pos).setY(1.2);
     this.hud.boss.classList.add('hidden');
+    this.msgTimer = 0;
+    this.hud.msg.style.opacity = '0';
   }
 
   start() {
@@ -347,11 +412,12 @@ export class Game {
     this.hud.hud.classList.remove('hidden');
     if (this.input.touchEnabled) this.hud.touch.classList.remove('hidden');
     // llegada por la brecha
-    this.sparks.burst(new THREE.Vector3(0, 1.2, 2), 120, new THREE.Color(0x46f2ff), 9, 1.2, 0.6, -2, 0.6);
+    this.sparks.burst(this.player.pos.clone().setY(1.2), 120, new THREE.Color(0x46f2ff), 9, 1.2, 0.6, -2, 0.6);
     this.rings.spawn(this.player.pos, 0x46f2ff, 6, 0.8);
     this.audio.portal();
-    this.title('ERA I · ROMA');
-    setTimeout(() => this.message('Pelea a puño limpio y quítales las armas. Canjea los chips en los manantiales.', 4.5), 2200);
+    this.title(this.def.era, `Nivel ${this.def.num} · ${this.def.name}`);
+    const lvl = this.levelIdx;
+    setTimeout(() => { if (this.levelIdx === lvl) this.message(this.def.intro, 4.5); }, 2400);
   }
 
   // ------------------------------------------------------------------ HUD
@@ -360,8 +426,8 @@ export class Game {
     this.hud.msg.style.opacity = '1';
     this.msgTimer = dur;
   }
-  title(t: string) {
-    this.hud.zoneTitle.textContent = t;
+  title(t: string, sub = '') {
+    this.hud.zoneTitle.innerHTML = sub ? `${t}<small>${sub}</small>` : t;
     this.hud.zoneTitle.style.opacity = '1';
     this.titleTimer = 2.8;
   }
@@ -418,11 +484,17 @@ export class Game {
     this.pickups.push({ kind, weapon, mesh, pos, t: Math.random() * 6, vel });
   }
 
-  private spawnEnemy(s: Spawn) {
+  private spawnEnemy(s: SpawnDef) {
     const st = STATS[s.k];
-    const rig = new Rig(RIG_OF[s.k], this.looks[s.k], st.scale);
-    rig.setWeapon(st.weapon, this.weaponMats);
-    if (st.shield) rig.addShield(this.shieldMat.clone(), this.m.gold);
+    let rig: Body;
+    if (st.rig === 'beast') {
+      rig = new Quadruped(this.beastLooks[s.k as 'sabertooth' | 'alphacat'], st.scale);
+    } else {
+      const r = new Rig(st.rig, this.looks[s.k], st.scale);
+      r.setWeapon(st.weapon, this.weaponMats);
+      if (st.shield) r.addShield(this.shieldMat.clone(), this.m.gold);
+      rig = r;
+    }
     const e = new Enemy(s.k, rig);
     e.pos.set(s.x, 0, s.z);
     e.facing = Math.atan2(this.player.pos.x - s.x, this.player.pos.z - s.z);
@@ -434,7 +506,10 @@ export class Game {
     this.sparks.burst(at, 30, new THREE.Color(0x46f2ff), 4, 0.7, 0.4, -1, 1);
     this.rings.spawn(e.pos, 0x9a4dff, 3, 0.6);
     this.audio.spawn();
-    if (s.k === 'centurion') this.bossRef = e;
+    if (st.boss) {
+      this.bossRef = e;
+      (this.hud.boss.querySelector('.name') as HTMLElement).textContent = st.boss;
+    }
     return e;
   }
 
@@ -487,8 +562,9 @@ export class Game {
 
   private render(rawDt: number, dt: number) {
     this.level.update(this.time);
-    const inArena = this.player.pos.distanceTo(this.level.arenaCenter) < 40;
-    if (inArena) this.level.updateCrowd(this.time, this.zones[2]?.started ? 0.5 + (this.bossRef ? 0.5 : 0) : 0.15);
+    const cc = this.level.crowdCenter;
+    const inArena = !!cc && this.player.pos.distanceTo(cc) < 40;
+    if (inArena) this.level.updateCrowd(this.time, this.bossRef ? 1 : 0.15);
     this.audio.crowd(inArena && this.state === 'play' ? 1 : 0);
     this.riftMat.uniforms.uTime.value = this.time;
     if (this.portalMat) this.portalMat.uniforms.uTime.value = this.time;
@@ -507,16 +583,15 @@ export class Game {
   private updateCamera(dt: number) {
     const z = this.player.pos.z;
     const target = new THREE.Vector3();
-    if (z < 44) target.set(3.2, 4.4, -7.2);
-    else if (z < 112) target.set(0, 5.8, -8.2);
-    else if (z < 126) target.set(0, 3.6, -6.5);
-    else target.set(0, 9.0, -10.5);
+    let cam = this.def.cams[0];
+    for (const c of this.def.cams) if (z >= c.z) cam = c;
+    target.set(...cam.off);
     if (this.level.tunnelRoof) this.level.tunnelRoof.visible = z < 125.5;
     if (this.isMobile || innerWidth < innerHeight) target.multiplyScalar(1.15);
     this.camOff.lerp(target, 1 - Math.exp(-dt * 1.6));
     const look = tmpV.copy(this.player.pos).setY(1.3);
     // en la arena, encuadrar también al jefe
-    if (this.bossRef && this.bossRef.state !== 'dead' && z > 126) {
+    if (this.bossRef && this.bossRef.state !== 'dead' && this.bossRef.pos.distanceTo(this.player.pos) < 28) {
       look.lerp(tmpV2.copy(this.bossRef.pos).setY(1.3), 0.25);
     }
     const desired = tmpV2.copy(this.player.pos).add(this.camOff);
@@ -543,7 +618,7 @@ export class Game {
     // dirección relativa a cámara
     const cf = tmpV.subVectors(this.camLook, this.camera.position).setY(0).normalize();
     const cr = new THREE.Vector3(-cf.z, 0, cf.x);
-    const wish = new THREE.Vector3().addScaledVector(cf, inp.moveY).addScaledVector(cr, -inp.moveX);
+    const wish = new THREE.Vector3().addScaledVector(cf, inp.moveY).addScaledVector(cr, inp.moveX);
     const wl = Math.min(1, wish.length());
     if (wl > 0.01) wish.normalize();
 
@@ -557,7 +632,7 @@ export class Game {
 
     if (inp.pressed('switch') && this.playerWeapons.length > 1 && (p.state === 'move' || p.state === 'block')) {
       this.weaponIdx = (this.weaponIdx + 1) % this.playerWeapons.length;
-      p.rig.setWeapon(this.currentWeapon(), this.weaponMats);
+      (p.rig as Rig).setWeapon(this.currentWeapon(), this.weaponMats);
       this.audio.pickup();
     }
 
@@ -566,10 +641,14 @@ export class Game {
       case 'block': {
         const blocking = inp.held('block');
         p.state = blocking ? 'block' : 'move';
-        moveSpeed = (blocking ? 1.6 : 5.4) * wl;
+        moveSpeed = (blocking ? 1.6 : 5.4) * wl * (this.inTar(p.pos) ? 0.45 : 1);
+        if (wl > 0.1 && this.inTar(p.pos)) {
+          if (Math.random() < 0.3) this.dust.emit(p.pos.x, 0.1, p.pos.z, 0, 0.4, 0, 0.7, 0.3, new THREE.Color(0x0a0806), 0, 2);
+          if (!this.shownTitles.has('tar')) { this.shownTitles.add('tar'); this.message('¡Brea! Te mueves mucho más despacio', 2); }
+        }
         if (wl > 0.1) p.facing = turn(p.facing, Math.atan2(wish.x, wish.z), blocking ? 4 : 12, dt);
         else if (blocking) this.faceNearest(p, dt, 6);
-        if (inp.pressed('attack')) this.startPlayerAttack(PLAYER_COMBOS[weapon][0], wish, wl), (this.combo = 0);
+        if (inp.pressed('attack')) this.startPlayerAttack(playerCombo(weapon)[0], wish, wl), (this.combo = 0);
         else if (inp.pressed('kick')) this.startPlayerAttack(KICK, wish, wl), (this.combo = -1);
         else if (inp.pressed('dodge')) {
           p.state = 'dodge';
@@ -598,7 +677,7 @@ export class Game {
           this.shake = Math.max(this.shake, 0.4);
         }
         p.trail.active = p.t >= a.hit[0] - 0.04 && p.t <= a.hit[1] + 0.04 && weapon !== 'fists';
-        const chain = PLAYER_COMBOS[weapon];
+        const chain = playerCombo(weapon);
         if (this.queued && p.t >= a.chain && this.combo >= 0 && this.combo < chain.length - 1) {
           this.combo++;
           this.startPlayerAttack(chain[this.combo], wish, wl);
@@ -618,7 +697,7 @@ export class Game {
         p.pos.addScaledVector(this.dodgeDir, 10 * (1 - k) * dt);
         if (Math.random() < 0.5) this.dust.emit(p.pos.x, 0.1, p.pos.z, (Math.random() - 0.5), 0.6, (Math.random() - 0.5), 0.8, 0.5, new THREE.Color(0x8a7458), 0, 2);
         if (p.t >= dur) p.state = 'move';
-        if (p.t > 0.25 && inp.pressed('attack')) { this.startPlayerAttack(PLAYER_COMBOS[weapon][2], wish, wl); this.combo = 2; }
+        if (p.t > 0.25 && inp.pressed('attack')) { this.startPlayerAttack(playerCombo(weapon)[2], wish, wl); this.combo = 2; }
         break;
       }
       case 'hit':
@@ -768,10 +847,10 @@ export class Game {
     this.sparks.burst(at, 12, new THREE.Color(0x46f2ff), 5, 0.35, 0.3, -2);
     this.hitstop = a.heavy ? 0.09 : 0.045;
     this.shake = Math.max(this.shake, a.heavy ? 0.35 : 0.15);
-    const knockMul = e.kind === 'brute' ? 0.45 : e.kind === 'centurion' ? 0.3 : 1;
+    const knockMul = st.boss ? 0.3 : st.armored ? 0.45 : e.beast ? 0.7 : 1;
     e.vel.addScaledVector(dir, a.knock * knockMul);
     if (e.hp <= 0) { this.killEnemy(e); return; }
-    const armored = e.state === 'attack' && (e.kind === 'centurion' || (e.kind === 'brute' && !a.heavy));
+    const armored = e.state === 'attack' && (!!st.boss || (!!st.armored && !a.heavy));
     if (!armored) {
       e.state = 'stagger';
       e.t = 0;
@@ -779,13 +858,13 @@ export class Game {
       e.rig.telegraph(0);
       e.trail.active = false;
     }
-    if (e.kind === 'centurion' && e.hp < st.hp * 0.5 && !this.reinforced) {
+    if (st.boss && e.hp < st.hp * 0.5 && !this.reinforced) {
       this.reinforced = true;
       e.enraged = true;
-      this.message('¡Varro llama a su guardia!', 2.5);
-      const C = this.level.arenaCenter;
-      this.spawnEnemy({ k: 'brute', x: C.x - 12, z: C.z + 8 });
-      this.spawnEnemy({ k: 'spearman', x: C.x + 12, z: C.z + 8 });
+      if (this.def.reinforce.length) {
+        this.message(e.beast ? '¡La manada acude a su llamada!' : e.kind === 'centurion' ? '¡Varro llama a su guardia!' : '¡Llegan refuerzos!', 2.5);
+        for (const r of this.def.reinforce) this.spawnEnemy(r);
+      }
     }
   }
 
@@ -798,20 +877,20 @@ export class Game {
     this.score += STATS[e.kind].score;
     this.audio.death();
     // chips de memoria temporal
-    const nChips = e.kind === 'centurion' ? 6 : e.kind === 'brute' ? 3 : e.kind === 'retiarius' ? 2 : 1 + (Math.random() < 0.4 ? 1 : 0);
+    const nChips = STATS[e.kind].chips + (Math.random() < 0.4 ? 1 : 0);
     for (let i = 0; i < nChips; i++) this.addPickup('chip', e.pos.clone().setY(0.9), undefined, new THREE.Vector3((Math.random() - 0.5) * 4, 4 + Math.random() * 2, (Math.random() - 0.5) * 4));
     // su arma cae al suelo
-    const drop = DROPS[e.kind];
+    const drop = STATS[e.kind].drop;
     if (drop && (!this.playerWeapons.includes(drop) || Math.random() < 0.15)) {
       if (e.rig.weapon) e.rig.weapon.visible = false;
       this.addPickup('weapon', e.pos.clone().addScaledVector(fwd(e.facing), -0.6).setY(1.0), drop);
     }
-    if (e.kind === 'brute' || e.kind === 'retiarius' || Math.random() < 0.25) this.addPickup('heal', e.pos.clone().add(new THREE.Vector3(0.8, 0.8, 0)));
-    if (e.kind === 'centurion') {
+    if (STATS[e.kind].chips >= 2 || Math.random() < 0.25) this.addPickup('heal', e.pos.clone().add(new THREE.Vector3(0.8, 0.8, 0)));
+    if (STATS[e.kind].boss) {
       this.slowT = 1.6;
       this.shake = 0.6;
       this.sparks.burst(e.chest(), 200, new THREE.Color(0x9a4dff), 12, 1.5, 0.6, -3);
-      this.message('¡Varro ha caído! La brecha se debilita…', 3.5);
+      this.message(`¡${STATS[e.kind].boss!.split(',')[0]} ha caído! La brecha se debilita…`, 3.5);
       for (const o of this.enemies) if (o !== e && o.state !== 'dead') this.killEnemy(o);
     }
   }
@@ -861,10 +940,12 @@ export class Game {
   }
 
   showEnd(win: boolean, text: string) {
-    document.getElementById('overTitle')!.textContent = win ? 'BRECHA SELLADA' : 'FLUJO COLAPSADO';
+    const last = this.levelIdx === LEVELS.length - 1;
+    const eraEnd = last || LEVELS[this.levelIdx + 1].era !== this.def.era;
+    document.getElementById('overTitle')!.textContent = !win ? 'FLUJO COLAPSADO' : eraEnd ? 'ERA COMPLETADA' : 'NIVEL COMPLETADO';
     const mins = Math.floor(this.elapsed / 60), secs = Math.floor(this.elapsed % 60).toString().padStart(2, '0');
     document.getElementById('overText')!.innerHTML = `${text}<br><br>Puntuación: <b>${this.score.toLocaleString('es')}</b> · Tiempo: <b>${mins}:${secs}</b>`;
-    document.getElementById('retry')!.textContent = win ? 'JUGAR DE NUEVO' : 'REINTENTAR';
+    document.getElementById('retry')!.textContent = !win ? 'REINTENTAR NIVEL' : last ? 'JUGAR DE NUEVO' : 'SIGUIENTE NIVEL';
     document.getElementById('over')!.classList.remove('hidden');
   }
 
@@ -884,11 +965,14 @@ export class Game {
     const angToP = Math.atan2(toP.x, toP.z);
     const playerAlive = p.state !== 'dead';
     let moveSpeed = 0;
-    const speed = st.speed * (e.enraged ? 1.2 : 1);
+    const speed = st.speed * (e.enraged ? 1.2 : 1) * (this.inTar(e.pos) ? 0.45 : 1);
     const tp = e.target;
     copyPose(tp, basePose());
-    guardPose(tp, st.weapon, this.time + e.phase, false);
-    tp.shield = 0.2;
+    if (e.beast) beastIdle(tp, this.time + e.phase, e.state === 'chase');
+    else {
+      guardPose(tp, st.weapon, this.time + e.phase, false);
+      tp.shield = 0.2;
+    }
     let rate = 14;
 
     switch (e.state) {
@@ -902,8 +986,8 @@ export class Game {
       case 'chase': {
         if (!playerAlive) { e.facing = turn(e.facing, angToP, 2, dt); break; }
         e.facing = turn(e.facing, angToP, 6, dt);
-        const attackers = this.enemies.filter((o) => o.state === 'attack' && o.kind !== 'centurion').length;
-        const canAttack = e.cool <= 0 && (e.kind === 'centurion' || attackers < 2);
+        const attackers = this.enemies.filter((o) => o.state === 'attack' && !o.st.boss).length;
+        const canAttack = e.cool <= 0 && (!!st.boss || attackers < 2);
         const range = e.atkRange();
         const dirTo = toP.clone().normalize();
         const tang = new THREE.Vector3(-dirTo.z, 0, dirTo.x).multiplyScalar(e.strafe);
@@ -937,9 +1021,9 @@ export class Game {
       case 'attack': {
         const a = e.atk!;
         const k = clamp01(e.t / a.dur);
-        if (e.t < a.hit[0] - 0.18) e.facing = turn(e.facing, angToP, e.kind === 'centurion' ? 5 : 3.2, dt);
+        if (e.t < a.hit[0] - 0.18) e.facing = turn(e.facing, angToP, st.boss || e.beast ? 5 : 3.2, dt);
         if (e.t > a.hit[0] - 0.12 && e.t < a.hit[1]) {
-          e.pos.addScaledVector(fwd(e.facing), a.lunge * dt * (e.kind === 'centurion' && a.lunge > 10 ? 1 : 0.7));
+          e.pos.addScaledVector(fwd(e.facing), a.lunge * dt * (a.lunge > 10 ? 1 : 0.7));
         }
         const tel = e.t < a.hit[0] ? Math.pow(clamp01(e.t / a.hit[0]), 2) : Math.max(0, 1 - (e.t - a.hit[0]) * 5);
         e.rig.telegraph(tel);
@@ -971,12 +1055,12 @@ export class Game {
           e.trail.active = false;
           e.rig.telegraph(0);
           const idx = st.attacks.indexOf(a);
-          if (e.kind === 'centurion' && idx === 0 && Math.random() < 0.75) {
+          if (st.boss && idx === 0 && st.attacks.length > 1 && Math.random() < 0.7) {
             this.startEnemyAttack(e, 1);
           } else {
             e.state = 'chase';
             e.t = 0;
-            e.cool = e.kind === 'centurion' ? 0.4 + Math.random() * (e.enraged ? 0.4 : 0.9) : 1.0 + Math.random() * 1.4;
+            e.cool = st.boss ? 0.4 + Math.random() * (e.enraged ? 0.4 : 0.9) : e.beast ? 0.8 + Math.random() : 1.0 + Math.random() * 1.4;
           }
         }
         break;
@@ -993,13 +1077,15 @@ export class Game {
         break;
       }
       case 'stagger':
-        hitPose(tp, 1 - clamp01(e.t / e.stun) * 0.6);
+        if (e.beast) beastHit(tp, 1 - clamp01(e.t / e.stun) * 0.6);
+        else hitPose(tp, 1 - clamp01(e.t / e.stun) * 0.6);
         rate = 22;
         if (e.t >= e.stun) { e.state = 'chase'; e.t = 0; e.cool = Math.min(e.cool, 0.5); }
         break;
       case 'dead':
         e.removeT += dt;
-        deathPose(tp, e.t / 0.7);
+        if (e.beast) beastDeath(tp, e.t / 0.6);
+        else deathPose(tp, e.t / 0.7);
         rate = 18;
         if (e.removeT > 2.2) {
           e.rig.root.position.y -= dt * 0.35;
@@ -1009,8 +1095,13 @@ export class Game {
     }
 
     if (e.state === 'chase' || e.state === 'block') {
-      e.phase += dt * moveSpeed * 1.9;
-      locomotion(tp, e.phase, clamp01(moveSpeed / 3), 0.4);
+      if (e.beast) {
+        e.phase += dt * moveSpeed * 1.6 / Math.sqrt(st.scale);
+        beastGait(tp, e.phase, clamp01(moveSpeed / 4));
+      } else {
+        e.phase += dt * moveSpeed * 1.9 / Math.sqrt(st.scale);
+        locomotion(tp, e.phase, clamp01(moveSpeed / 3), 0.4);
+      }
     }
 
     if (e.state !== 'dead') {
@@ -1034,11 +1125,16 @@ export class Game {
     const atks = STATS[e.kind].attacks;
     let i = idx ?? 0;
     if (idx === undefined) {
+      const d = e.pos.distanceTo(this.player.pos);
+      const r = Math.random();
       if (e.kind === 'centurion') {
-        const d = e.pos.distanceTo(this.player.pos);
-        const r = Math.random();
         i = d > 3.5 && r < 0.6 ? 2 : r < 0.25 ? 3 : 0;
-      } else i = Math.floor(Math.random() * atks.length);
+      } else if (e.beast) {
+        // de lejos salta, de cerca da zarpazos
+        i = d > 2.6 * Math.sqrt(e.st.scale) ? 1 : r < 0.25 ? 1 : 0;
+      } else if (e.kind === 'megatherium') {
+        i = r < 0.35 ? 2 : 0;
+      } else i = Math.floor(r * atks.length);
     }
     e.atk = atks[i];
     e.state = 'attack';
@@ -1069,8 +1165,9 @@ export class Game {
   private updateZones() {
     const p = this.player;
     const z = p.pos.z;
-    if (z > 46 && !this.shownTitles.has('street')) { this.shownTitles.add('street'); this.title('VÍA DEL MERCADO'); }
-    if (z > 114 && !this.shownTitles.has('arena')) { this.shownTitles.add('arena'); this.title('EL ANFITEATRO'); }
+    for (const tt of this.def.titles) {
+      if (z > tt.z && !this.shownTitles.has(tt.text)) { this.shownTitles.add(tt.text); this.title(tt.text); }
+    }
 
     let fighting = false;
     for (const zone of this.zones) {
@@ -1094,7 +1191,7 @@ export class Game {
         zone.wave++;
         if (zone.wave < zone.waves.length) {
           zone.waves[zone.wave].forEach((s) => this.spawnEnemy(s));
-          this.message('¡Más legionarios atraviesan la brecha!', 2);
+          this.message(this.def.build === 'rome' ? '¡Más legionarios atraviesan la brecha!' : '¡Algo se acerca entre las rocas!', 2);
         } else {
           zone.done = true;
           if (zone.gate >= 0) {
@@ -1118,19 +1215,19 @@ export class Game {
       p.rig.root.visible = false;
       const bonus = Math.round(this.flux * 30 + Math.max(0, p.hp) * 20);
       this.score += bonus;
-      setTimeout(() => this.showEnd(true, `Has sellado la brecha de la Era I.<br>Bonus de flujo e integridad: +${bonus.toLocaleString('es')}<br><i>Próxima era: el Japón feudal…</i>`), 1200);
+      setTimeout(() => this.showEnd(true, `${this.def.outro}<br>Bonus de flujo e integridad: +${bonus.toLocaleString('es')}`), 1200);
     }
   }
 
   private openPortal() {
-    const C = this.level.arenaCenter;
+    const [px, pz] = this.def.portal;
     const g = new THREE.Group();
     this.portalMat = energyMaterial(0x46f2ff, 0x9a4dff, 2);
     const disc = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.2), this.portalMat);
     g.add(disc);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.07, 10, 64), new THREE.MeshStandardMaterial({ color: 0x061a1e, emissive: 0x46f2ff, emissiveIntensity: 4 }));
     g.add(ring);
-    g.position.set(C.x, 2.3, C.z + 2);
+    g.position.set(px, 2.3, pz);
     g.lookAt(this.player.pos.clone().setY(2.3));
     this.scene.add(g);
     this.portal = g;
@@ -1144,9 +1241,9 @@ export class Game {
     this.flux -= dt * (100 / 240);
     if (this.flux <= 0) { this.flux = 0; this.playerDie('El flujo temporal se agotó y la brecha te ha engullido.'); return; }
     // la brecha avanza: nunca más allá del inicio de la zona activa
-    let stop = 112;
+    let stop = this.def.wallMax;
     for (const z of this.zones) if (!z.done) { stop = z.wallStop; break; }
-    if (this.zones.every((z) => z.done)) stop = 112;
+    if (this.zones.every((z) => z.done)) stop = this.def.wallMax;
     this.wallZ = Math.min(stop, Math.max(this.wallZ + dt * 0.6, p.pos.z - 32));
     this.riftWall.position.z = this.wallZ;
     if (p.pos.z < this.wallZ + 1.2) {
@@ -1206,7 +1303,7 @@ export class Game {
         } else {
           this.playerWeapons.push(it.weapon);
           this.weaponIdx = this.playerWeapons.length - 1;
-          p.rig.setWeapon(it.weapon, this.weaponMats);
+          (p.rig as Rig).setWeapon(it.weapon, this.weaponMats);
           this.audio.pickup();
           this.message(`${WEAPON_HINT[it.weapon]}${this.playerWeapons.length > 2 ? ' · Q para cambiar' : ''}`, 3);
         }
@@ -1226,6 +1323,11 @@ export class Game {
   }
 
   /** Manantiales temporales: convierten los chips en flujo de tiempo */
+  inTar(p: THREE.Vector3) {
+    for (const h of this.level.hazards) if (Math.hypot(p.x - h.x, p.z - h.z) < h.r) return true;
+    return false;
+  }
+
   private updateSprings(dt: number) {
     const p = this.player;
     for (const sp of this.level.springs) {
@@ -1260,6 +1362,14 @@ export class Game {
     // polvo flotante con la luz del atardecer
     if (Math.random() < dt * 20) {
       this.dust.emit(p.pos.x + (Math.random() - 0.5) * 20, Math.random() * 5, p.pos.z + (Math.random() - 0.2) * 20, (Math.random() - 0.5) * 0.2, 0.05, (Math.random() - 0.5) * 0.2, 4, 0.12, new THREE.Color(0xffe2b0), 0, 0.1);
+    }
+    // humo de hogueras, brea y volcanes
+    for (const sm of this.level.smoke) {
+      const far = sm.y > 30;
+      if (!far && Math.abs(sm.z - p.pos.z) > 35) continue;
+      if (Math.random() < dt * (far ? 6 : 3)) {
+        this.dust.emit(sm.x + (Math.random() - 0.5) * (far ? 8 : 0.4), sm.y, sm.z + (Math.random() - 0.5) * (far ? 8 : 0.4), (Math.random() - 0.5) * 0.3, far ? 4 : 0.8 + Math.random() * 0.5, (Math.random() - 0.5) * 0.3, far ? 10 : 3, far ? 30 : 1.1, new THREE.Color(far ? 0x2a2420 : 0x3a3532), 0, 0.2);
+      }
     }
     // ascuas de antorchas cercanas
     for (const f of this.level.flames) {

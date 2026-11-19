@@ -18,7 +18,7 @@ export interface AttackDef {
 const P = Math.PI;
 
 // ----------------------------------------------------------------- jugadora
-export const PLAYER_COMBOS: Record<Exclude<WeaponType, 'centurion'>, AttackDef[]> = {
+export const PLAYER_COMBOS: Record<'fists' | 'gladius' | 'spear' | 'club' | 'trident', AttackDef[]> = {
   fists: [
     {
       dur: 0.34, hit: [0.07, 0.16], dmg: 8, range: 1.55, arc: 0.5, knock: 1.5, lunge: 2.5, chain: 0.14,
@@ -163,4 +163,59 @@ export const BOSS_ATTACKS: AttackDef[] = [
     dur: 1.25, hit: [0.68, 0.8], dmg: 16, range: 3.6, arc: -1, knock: 9, lunge: 0, chain: 9, slam: true, heavy: true,
     keys: [{ t: 0, p: {} }, { t: 0.5, p: { rShP: 2.9, rEl: 0.4, rWr: 0.2, spineX: -0.3, shield: 1, bodyY: 0.05 } }, { t: 0.6, p: { rShP: 0.6, rEl: 0.1, rWr: 1.4, spineX: 0.7, bodyY: -0.28, lKnee: 1.0, rKnee: 1.0, shield: 0 } }, { t: 0.85, p: { rShP: 0.6, spineX: 0.6, bodyY: -0.25 } }, { t: 1, p: {} }],
   },
+];
+
+// armas prehistóricas de la jugadora: reutilizan los combos equivalentes
+export function playerCombo(w: WeaponType): AttackDef[] {
+  if (w === 'garrote') return PLAYER_COMBOS.club;
+  if (w === 'flintspear') return PLAYER_COMBOS.spear;
+  if (w === 'fists' || w === 'gladius' || w === 'spear' || w === 'club' || w === 'trident') return PLAYER_COMBOS[w];
+  return PLAYER_COMBOS.fists;
+}
+
+// ----------------------------------------------------------------- prehistoria
+// cavernícola con garrote: golpe vertical y barrido
+export const CAVE_ATTACKS: AttackDef[] = [
+  {
+    dur: 0.95, hit: [0.48, 0.6], dmg: 9, range: 2.0, arc: 0.3, knock: 4, lunge: 3, chain: 9,
+    keys: [{ t: 0, p: {} }, { t: 0.45, p: { rShP: 2.7, rEl: 0.8, rWr: 0.2, spineX: -0.25, lShP: 0.6 } }, { t: 0.63, p: { rShP: 0.9, rEl: 0.1, rWr: 1.0, spineX: 0.45, bodyY: -0.1, lLegP: 0.4 } }, { t: 0.82, p: { rShP: 0.9, rWr: 1.0, spineX: 0.4 } }, { t: 1, p: {} }],
+  },
+  {
+    dur: 1.0, hit: [0.5, 0.64], dmg: 8, range: 2.1, arc: 0.0, knock: 5, lunge: 2, chain: 9,
+    keys: [{ t: 0, p: {} }, { t: 0.45, p: { rShP: 0.6, rShA: 1.3, rShY: -0.9, rEl: 0.4, rWr: 1.0, spineY: -0.8 } }, { t: 0.65, p: { rShP: 0.5, rShA: 1.3, rShY: 2.1, rEl: 0.1, rWr: 1.1, spineY: 0.8 } }, { t: 0.85, p: { rShY: 2.1, spineY: 0.8 } }, { t: 1, p: {} }],
+  },
+];
+
+// dientes de sable: zarpazo con mordisco y salto (pose de cuadrúpedo, ver beast.ts)
+export const CAT_ATTACKS: AttackDef[] = [
+  {
+    dur: 0.85, hit: [0.42, 0.55], dmg: 10, range: 2.1, arc: 0.4, knock: 3, lunge: 4, chain: 9,
+    keys: [{ t: 0, p: {} }, { t: 0.45, p: { spineX: -0.3, bodyY: 0.05, lShP: 1.3, lEl: 1.5, headX: -0.3, rWr: 0.7, lLegP: -0.2, rLegP: -0.2 } }, { t: 0.62, p: { spineX: 0.25, bodyY: -0.05, lShP: 0.7, lEl: 0.1, headX: 0.5, rWr: 1.1 } }, { t: 0.85, p: { spineX: 0.1, lShP: 0.3, rWr: 0.3 } }, { t: 1, p: {} }],
+  },
+  {
+    dur: 1.35, hit: [0.72, 0.98], dmg: 15, range: 2.3, arc: 0.6, knock: 8, lunge: 13, chain: 9, heavy: true,
+    keys: [{ t: 0, p: {} }, { t: 0.48, p: { bodyY: -0.28, lKnee: 1.3, rKnee: 1.3, lLegP: -0.6, rLegP: -0.6, lEl: 1.1, rEl: 1.1, spineX: 0.18, headX: 0.25, rWr: 0.4 } }, { t: 0.62, p: { bodyY: 0.55, spineX: -0.35, lShP: 1.5, rShP: 1.5, lEl: 0.2, rEl: 0.2, lLegP: -1.0, rLegP: -1.0, lKnee: 0.1, rKnee: 0.1, rWr: 1.2, headX: -0.1 } }, { t: 0.8, p: { bodyY: 0.0, spineX: 0.25, lShP: 0.8, rShP: 0.8, lEl: 0.4, rEl: 0.4, rWr: 1.0, headX: 0.4 } }, { t: 1, p: {} }],
+  },
+];
+
+// perezoso gigante: zarpazo amplio y golpe con ambos brazos
+export const SLOTH_ATTACKS: AttackDef[] = [
+  {
+    dur: 1.2, hit: [0.62, 0.78], dmg: 14, range: 2.5, arc: -0.1, knock: 6, lunge: 2, chain: 9, heavy: true,
+    keys: [{ t: 0, p: {} }, { t: 0.5, p: { rShP: 0.9, rShA: 1.4, rShY: -1.0, rEl: 0.3, spineY: -0.9, spineX: 0.1 } }, { t: 0.66, p: { rShP: 0.7, rShA: 1.35, rShY: 2.2, rEl: 0.1, spineY: 0.8, spineX: 0.4 } }, { t: 0.85, p: { rShY: 2.2, spineY: 0.8 } }, { t: 1, p: {} }],
+  },
+  {
+    dur: 1.6, hit: [0.9, 1.02], dmg: 18, range: 2.8, arc: 0.4, knock: 9, lunge: 1.5, chain: 9, slam: true, heavy: true,
+    keys: [{ t: 0, p: {} }, { t: 0.5, p: { rShP: 3.0, rEl: 0.3, lShP: 3.0, lEl: 0.3, spineX: -0.4, headX: 0.3, bodyY: 0.08, rLegP: -0.2, lLegP: -0.2 } }, { t: 0.62, p: { rShP: 1.1, rEl: 0.05, lShP: 1.1, lEl: 0.05, spineX: 0.8, bodyY: -0.25, lKnee: 0.7, rKnee: 0.7, lLegP: 0.4 } }, { t: 0.85, p: { rShP: 1.0, lShP: 1.0, spineX: 0.8, bodyY: -0.25 } }, { t: 1, p: {} }],
+  },
+];
+
+// Megaterio (jefe): los del perezoso más un doble zarpazo rápido
+export const MEGA_ATTACKS: AttackDef[] = [
+  SLOTH_ATTACKS[0],
+  {
+    dur: 0.9, hit: [0.36, 0.5], dmg: 13, range: 2.5, arc: -0.1, knock: 5, lunge: 2, chain: 9, heavy: true,
+    keys: [{ t: 0, p: { rShY: 2.2, rShA: 1.35, rShP: 0.7, spineY: 0.8 } }, { t: 0.4, p: { lShP: 0.9, lShA: 1.4, lShY: -1.0, lEl: 0.3, spineY: 0.9, rShY: 0.4 } }, { t: 0.6, p: { lShP: 0.7, lShA: 1.35, lShY: 2.2, lEl: 0.1, spineY: -0.8, spineX: 0.4 } }, { t: 1, p: {} }],
+  },
+  SLOTH_ATTACKS[1],
 ];

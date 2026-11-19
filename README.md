@@ -1,4 +1,4 @@
-# Chrono Breach · Era I: Roma
+# Chrono Breach
 
 Juego de acción 3D de viajes en el tiempo que se juega en el navegador. Está inspirado en los
 *brawlers* cinematográficos de los 90 (cámara fija por zonas, combate cuerpo a cuerpo, armas de cada
@@ -33,33 +33,48 @@ Añade `?q=low` a la URL en equipos poco potentes.
 
 En móvil aparecen un joystick y botones táctiles.
 
-## El nivel
+## Eras y niveles
 
-Empiezas a puño limpio. **Cada enemigo derrotado suelta su arma** y puedes quedártela; cambias entre
-las que tengas con Q.
+Hay 2 eras con 2 niveles cada una; desde el menú puedes elegir cualquier nivel. En cada nivel empiezas a
+puño limpio: **cada enemigo derrotado suelta su arma** y puedes quedártela (Q para cambiar).
+
+### Era I · Prehistoria
+
+1. **El Valle de los Colmillos.** Pradera con campamento cavernícola, pinturas rupestres y un claro de
+   menhires. Jefe: **Garra Gris**, un dientes de sable alfa que salta desde lejos y llama a su manada.
+2. **Los Pozos de Brea.** Llanura volcánica al atardecer: la brea te frena, hay ríos de lava y un mamut
+   atrapado. Jefe: el **Megaterio**, un perezoso gigante cuyos golpes hacen temblar el suelo.
+
+| Adversario | Arma que suelta | Cómo pelea |
+|---|---|---|
+| Cavernícola | Garrote | Golpes verticales y barridos |
+| Cazador | Lanza de sílex | Estocadas de largo alcance |
+| Dientes de sable | — | Muy rápido, rodea a distancia y salta sobre ti |
+| Perezoso gigante | — | Lento y resistente, zarpazos amplios y golpe al suelo |
+
+### Era II · Roma
+
+1. **Las Puertas de Roma.** Afueras en ruinas y la Vía del Mercado.
+2. **El Anfiteatro.** Combate contra **Varro, Centurión de la Brecha**, ante miles de espectadores.
 
 | Adversario | Arma que suelta | Cómo pelea |
 |---|---|---|
 | Legionario | Gladius | Escudo rectangular, bloquea a menudo (usa la patada) |
 | Lancero | Pilum | Estocadas de largo alcance |
 | Reciario | Tridente | Gladiador rápido, sin armadura, dobles estocadas |
-| Bruto (gladiador pesado) | Maza | Lento, golpes que hacen temblar el suelo, aguanta golpes ligeros |
-| Varro, Centurión de la Brecha | — | Jefe final: combos, carga y golpe de escudo |
-
-1. **Afueras de Roma.** Ruinas al atardecer y la primera patrulla de legionarios.
-2. **Vía del Mercado.** Calle con tiendas, toldos y puestos. Dos oleadas mixtas.
-3. **El Anfiteatro.** El túnel se cierra a tu espalda y empieza el combate contra Varro ante miles de
-   espectadores. A mitad de vida llama a refuerzos.
+| Bruto | Maza | Lento, golpes que hacen temblar el suelo |
 
 **Chips y manantiales.** El **flujo temporal** se agota con el tiempo. Los enemigos sueltan **chips
-temporales**: recogerlos no da tiempo por sí solo, tienes que llevarlos a un **manantial temporal**
-(hay tres en el nivel) y entrar en él para convertirlos en flujo. La **brecha** avanza por detrás:
-si te alcanza te daña, y los chips o manantiales que deje atrás se pierden.
+temporales**: recogerlos no da tiempo por sí solo, tienes que llevarlos a un **manantial temporal** y
+entrar en él para convertirlos en flujo. La **brecha** avanza por detrás: si te alcanza te daña.
 
 ## Estructura
 
 - `src/game.ts`: bucle, jugadora, IA enemiga, cámara, zonas y HUD
-- `src/level.ts`: construcción del nivel y colisiones (OBB)
+- `src/levels.ts`: definición de eras, niveles, oleadas y cámaras
+- `src/level.ts`: construcción de Roma y colisiones (OBB)
+- `src/prehistory.ts`: construcción de los niveles prehistóricos
+- `src/beast.ts`: esqueleto de cuadrúpedo (dientes de sable)
 - `src/rig.ts`: esqueleto procedural, poses y armas
 - `src/combat.ts`: definición de ataques por keyframes
 - `src/fx.ts`: partículas, estelas y shaders de energía

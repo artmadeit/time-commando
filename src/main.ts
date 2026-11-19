@@ -1,4 +1,5 @@
 import { Game } from './game';
+import { LEVELS } from './levels';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const loading = document.getElementById('loading')!;
@@ -24,10 +25,32 @@ function boot() {
     menu.classList.add('hidden');
     game.start();
   });
+  // selector de nivel
+  const box = document.getElementById('levels')!;
+  let era = '';
+  LEVELS.forEach((l, i) => {
+    if (l.era !== era) {
+      era = l.era;
+      const h = document.createElement('div');
+      h.className = 'lv-era';
+      h.textContent = l.era;
+      box.appendChild(h);
+    }
+    const b = document.createElement('button');
+    b.className = 'lv';
+    b.id = `lv-${i}`;
+    b.innerHTML = `<span>${l.num}</span>${l.name}`;
+    b.addEventListener('click', () => {
+      menu.classList.add('hidden');
+      game.score = 0;
+      if (game.levelIdx !== i) game.loadLevel(i);
+      game.start();
+    });
+    box.appendChild(b);
+  });
   document.getElementById('retry')!.addEventListener('click', () => {
     over.classList.add('hidden');
-    game.reset();
-    game.start();
+    game.continueAfterEnd();
   });
   document.getElementById('resume')!.addEventListener('click', () => game.setPause(false));
   addEventListener('keydown', (e) => {

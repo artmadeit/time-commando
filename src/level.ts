@@ -66,6 +66,7 @@ export function resolveCircle(pos: THREE.Vector3, r: number, cols: OBB[]) {
 }
 
 export class Level {
+  crowdCenter: THREE.Vector3 | null = new THREE.Vector3(0, 0, 150);
   group = new THREE.Group();
   cols: OBB[] = [];
   gates: Gate[] = [];
@@ -74,16 +75,20 @@ export class Level {
   springs: { pos: THREE.Vector3; mats: THREE.ShaderMaterial[]; glow: number }[] = [];
   crowd: THREE.InstancedMesh | null = null;
   private crowdBase: { x: number; y: number; z: number; ph: number; s: number }[] = [];
-  private flameMeshes: THREE.Mesh[] = [];
-  private banners: THREE.Mesh[] = [];
+  flameMeshes: THREE.Mesh[] = [];
+  banners: THREE.Mesh[] = [];
+  hazards: { x: number; z: number; r: number }[] = [];
+  animated: ((t: number) => void)[] = [];
+  smoke: THREE.Vector3[] = [];
   arenaCenter = new THREE.Vector3(0, 0, 150);
   arenaR = 24;
   tunnelRoof: THREE.Mesh | null = null;
-  private r = rng(1234);
+  r = rng(1234);
 
-  constructor(private m: Mats, statueLook: RigLook) {
+  constructor(public m: Mats, statueLook: RigLook | null, build: ((L: Level) => void) | null = null) {
+    if (build) { build(this); return; }
     this.ground();
-    this.outskirts(statueLook);
+    this.outskirts(statueLook!);
     this.street();
     this.arena();
     this.backdrop();
@@ -278,17 +283,17 @@ export class Level {
   }
 
   // ---------------- construcción
-  private ground() {
+  ground(mat: THREE.Material = this.m.dirt()) {
     const g = new THREE.PlaneGeometry(800, 800);
     scaleUV(g, 800 / 6, 800 / 6);
-    const mesh = new THREE.Mesh(g, this.m.dirt());
+    const mesh = new THREE.Mesh(g, mat);
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.set(0, -0.02, 100);
     mesh.receiveShadow = true;
     this.group.add(mesh);
   }
 
-  private floor(mat: THREE.Material, x0: number, x1: number, z0: number, z1: number, y = 0) {
+  floor(mat: THREE.Material, x0: number, x1: number, z0: number, z1: number, y = 0) {
     const w = x1 - x0, d = z1 - z0;
     const g = new THREE.PlaneGeometry(w, d);
     scaleUV(g, w / TILE, d / TILE);
@@ -688,6 +693,7 @@ export class Level {
 
   // ---------------- animación
   update(t: number) {
+    for (const f of this.animated) f(t);
     for (const sp of this.springs) {
       for (const mt of sp.mats) mt.uniforms.uTime.value = t * (1 + sp.glow * 3);
       sp.mats[1].uniforms.uOpacity.value = 0.45 + sp.glow * 0.8;
