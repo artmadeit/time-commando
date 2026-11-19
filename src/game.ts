@@ -885,7 +885,10 @@ export class Game {
       if (e.rig.weapon) e.rig.weapon.visible = false;
       this.addPickup('weapon', e.pos.clone().addScaledVector(fwd(e.facing), -0.6).setY(1.0), drop);
     }
-    if (STATS[e.kind].chips >= 2 || Math.random() < 0.25) this.addPickup('heal', e.pos.clone().add(new THREE.Vector3(0.8, 0.8, 0)));
+    // durante el combate contra un jefe, sus secuaces sueltan curación casi siempre
+    const bossFight = !!this.bossRef && this.bossRef !== e && this.bossRef.state !== 'dead';
+    if (bossFight || STATS[e.kind].chips >= 2 || Math.random() < 0.25) this.addPickup('heal', e.pos.clone().add(new THREE.Vector3(0.8, 0.8, 0)));
+    if (bossFight && Math.random() < 0.5) this.addPickup('heal', e.pos.clone().add(new THREE.Vector3(-0.8, 0.8, 0.4)));
     if (STATS[e.kind].boss) {
       this.slowT = 1.6;
       this.shake = 0.6;
@@ -899,12 +902,14 @@ export class Game {
     const p = this.player;
     if (p.state === 'dead' || this.iframes > 0 || this.state !== 'play') return;
     const dir = tmpV.subVectors(p.pos, from).setY(0).normalize();
-    const facing = fwd(p.facing).dot(dir) < -0.25;
-    if (p.state === 'block' && facing && !(a && a.slam)) {
+    // la guardia cubre un arco amplio delante y también amortigua los golpes al suelo
+    const facing = fwd(p.facing).dot(dir) < 0.1;
+    if (p.state === 'block' && facing) {
+      const slam = !!(a && a.slam);
       this.audio.clang();
       this.sparks.burst(p.chest().addScaledVector(dir, -0.4), 24, new THREE.Color(0x9ff8ff), 7, 0.35, 0.22);
-      p.vel.addScaledVector(dir, (a?.knock ?? 3) * 0.5);
-      p.hp -= dmg * 0.12;
+      p.vel.addScaledVector(dir, (a?.knock ?? 3) * (slam ? 0.4 : 0.25));
+      p.hp -= dmg * (slam ? 0.3 : 0.05);
       this.hitstop = 0.04;
       return;
     }
